@@ -32,7 +32,7 @@ KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 STORY_FIELDS = ["summary", "status", "issuetype", "assignee", "created", "updated",
                 "duedate", "parent", "subtasks"]
 SUBTASK_FIELDS = ["summary", "status", "assignee", "created", "updated",
-                  "resolutiondate", "parent", "attachment"]
+                  "resolutiondate", "statuscategorychangedate", "parent", "attachment"]
 CHUNK = 50  # parent keys per JQL query; keeps the JQL well under the length limit
 
 _auth = base64.b64encode(f"{JIRA_EMAIL}:{JIRA_API_TOKEN}".encode()).decode()
@@ -49,11 +49,13 @@ def _post(url, body):
         raise RuntimeError(f"Jira API error {e.code} for {url}:\n{e.read().decode(errors='replace')}") from e
 
 
-def search(jql, fields):
+def search(jql, fields, expand=None):
     url = f"https://{JIRA_SITE}/rest/api/3/search/jql"
     issues, token = [], None
     while True:
         body = {"jql": jql, "maxResults": 100, "fields": fields}
+        if expand:
+            body["expand"] = expand
         if token:
             body["nextPageToken"] = token
         data = _post(url, body)
@@ -85,7 +87,8 @@ def main():
     subtasks = {}
     for i in range(0, len(parents), CHUNK):
         keys = ",".join(parents[i:i + CHUNK])
-        for issue in search(f"parent in ({keys})", SUBTASK_FIELDS):
+        # changelog gives the exact time each sub-task reached "Polarion checked"
+        for issue in search(f"parent in ({keys})", SUBTASK_FIELDS, expand="changelog"):
             subtasks[issue["key"]] = issue
     print(f"Sub-tasks fetched: {len(subtasks)}")
 
