@@ -5,7 +5,11 @@ Rules
 - A Story is shown only if it has at least one sub-task whose summary contains
   SUBTASK_KEYWORD (default "BL", case-sensitive). Other sub-tasks are ignored.
 - The BL number is read from the summary (BL1, _BL12, "BL 3", BL4.1 -> 4.1).
-- "Finished" statuses are listed in DONE_STATUSES; DROP_STATUSES are shown greyed out.
+- A sub-task counts as finished when its status is in Jira's "Done" category;
+  DROP_STATUSES are shown greyed out instead.
+- "Polarion checked": the time a sub-task (any sub-task of the Story, BL or not)
+  moved into POLARION_STATUS, read from the changelog; without a changelog entry
+  the resolution date of a sub-task currently in that status is used.
 - Every date is converted to Asia/Taipei.
 """
 import json
@@ -18,7 +22,7 @@ JQL = os.environ.get("JIRA_JQL", "filter=11923")
 KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 TPE = timezone(timedelta(hours=8))
 
-DONE_STATUSES = {"Done", "Released", "Closed", "Resolved"}
+POLARION_STATUS = os.environ.get("POLARION_STATUS", "Polarion checked")
 DROP_STATUSES = {"DROP", "Dropped", "Cancelled", "Canceled", "Rejected"}
 BL_RE = re.compile(r"BL\s*(\d+(?:\.\d+)?)")
 CFTS_RE = re.compile(r"CFTS[\s_]*(\d+)", re.I)
@@ -41,12 +45,29 @@ def tpe(ts):
     return ts
 
 
-def state(status):
-    if status in DROP_STATUSES:
+def state(status_obj):
+    name_ = (status_obj or {}).get("name", "")
+    if name_ in DROP_STATUSES:
         return "drop"
-    if status in DONE_STATUSES:
+    if ((status_obj or {}).get("statusCategory") or {}).get("key") == "done":
         return "done"
     return "open"
+
+
+def polarion_checked(issue, status_ids):
+    """Latest time this sub-task moved into POLARION_STATUS, or ''."""
+    f = issue.get("fields", {})
+    hits = []
+    for h in (issue.get("changelog") or {}).get("histories") or []:
+        for it in h.get("items") or []:
+            if it.get("field") == "status" and (
+                    it.get("to") in status_ids or it.get("toString") == POLARION_STATUS):
+                hits.append(h.get("created"))
+    if hits:
+        return tpe(max(hits))
+    if (f.get("status") or {}).get("name") == POLARION_STATUS:
+        return tpe(f.get("resolutiondate") or f.get("statuscategorychangedate"))
+    return ""
 
 
 def doc_id(summary):
@@ -73,6 +94,9 @@ def name(user):
 def main():
     stories = json.load(open("raw_stories.json", encoding="utf-8"))
     subtasks = {s["key"]: s for s in json.load(open("raw_subtasks.json", encoding="utf-8"))}
+    # the status may have been renamed, so match old changelog entries by status id
+    status_ids = {(t["fields"].get("status") or {}).get("id") for t in subtasks.values()
+                  if (t["fields"].get("status") or {}).get("name") == POLARION_STATUS} - {None}
 
     out = []
     for s in stories:
@@ -87,11 +111,12 @@ def main():
             m = BL_RE.search(summ)
             status = (sf.get("status") or {}).get("name", "")
             bls.append({
+                "checked": polarion_checked(full, status_ids),
                 "key": stub["key"],
                 "summary": summ.replace("\t", " "),
                 "bl": float(m.group(1)) if m else None,
                 "status": status,
-                "state": state(status),
+                "state": state(sf.get("status")),
                 "assignee": name(sf.get("assignee")),
                 "created": tpe(sf.get("created")),
                 "updated": tpe(sf.get("updated")),
@@ -106,6 +131,14 @@ def main():
         # BL number order; a sub-task without a readable number goes last, and two
         # sub-tasks with the same number keep their creation order
         bls.sort(key=lambda b: (b["bl"] is None, b["bl"] or 0, b["created"]))
+        checks = []
+        for stub in f.get("subtasks") or []:
+            full = subtasks.get(stub["key"])
+            when = polarion_checked(full, status_ids) if full else ""
+            if when:
+                checks.append({"key": stub["key"], "when": when,
+                               "summary": (stub.get("fields", {}).get("summary") or "").replace("\t", " ")})
+        checks.sort(key=lambda c: c["when"], reverse=True)
         parent = (f.get("parent") or {}).get("fields", {})
         out.append({
             "key": s["key"],
@@ -115,6 +148,7 @@ def main():
             "release": parent.get("summary", "(no parent)"),
             "updated": tpe(f.get("updated")),
             "doc": doc_id(f.get("summary") or ""),
+            "checks": checks,
             "bls": bls,
         })
 
@@ -123,6 +157,7 @@ def main():
         "site": JIRA_SITE,
         "jql": JQL,
         "keyword": KEYWORD,
+        "polarion": POLARION_STATUS,
         "filterStories": len(stories),
         "stories": out,
     }
