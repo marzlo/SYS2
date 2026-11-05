@@ -1,0 +1,58 @@
+name: Refresh SYS2 Docs Dashboard
+
+on:
+  schedule:
+    # 每天 UTC 01:00 / 06:00 / 09:00 = 台北 09:00 / 14:00 / 17:00(週一到週五)
+    - cron: '0 1,6,9 * * 1-5'
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/refresh-dashboard.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      JIRA_SITE: mobiledrivetech.atlassian.net
+      JIRA_JQL: 'filter=11923'
+      SUBTASK_KEYWORD: 'BL'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch stories + BL sub-tasks from Jira
+        env:
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: python scripts/fetch_jira.py
+
+      - name: Build site/index.html
+        run: python scripts/build_dashboard.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
