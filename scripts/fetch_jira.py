@@ -19,12 +19,13 @@ Optional:
 import base64
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 
 JIRA_SITE = os.environ.get("JIRA_SITE", "mobiledrivetech.atlassian.net")
-JIRA_EMAIL = os.environ["JIRA_EMAIL"]
-JIRA_API_TOKEN = os.environ["JIRA_API_TOKEN"]
+JIRA_EMAIL = os.environ.get("JIRA_EMAIL", "")
+JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", "")
 JQL = os.environ.get("JIRA_JQL", "filter=11923")
 KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 
@@ -64,8 +65,17 @@ def search(jql, fields):
 
 
 def main():
+    if not JIRA_EMAIL or not JIRA_API_TOKEN:
+        sys.exit("JIRA_EMAIL / JIRA_API_TOKEN are empty. Add both under "
+                 "Settings > Secrets and variables > Actions, then re-run.")
     stories = search(JQL, STORY_FIELDS)
     print(f"Filter '{JQL}': {len(stories)} issues")
+    if not stories:
+        # Jira answers an unauthorised search with 200 and no issues, so an empty
+        # result almost always means the account cannot see the filter. Stop here
+        # rather than publish an empty dashboard over the last good one.
+        sys.exit(f"Filter '{JQL}' returned 0 issues. Check that the secrets belong to an "
+                 "account that can open the filter.")
 
     parents = [s["key"] for s in stories
                if any(KEYWORD in (st.get("fields", {}).get("summary") or "")
