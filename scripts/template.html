@@ -104,6 +104,15 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
 .controls input[type=search],.controls select{font:15px var(--sans);color:var(--ink);background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:6px 10px}
 .controls input[type=search]{flex:1 1 260px}
+.types{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--sheet)}
+.types button{font:600 14px var(--cond);border:0;background:none;color:var(--ink-2);padding:6px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.types button:last-child{border-right:0}
+.types button[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
+.types button span{font-weight:500;opacity:.75;margin-left:4px}
+.doc{display:inline-block;font:700 13px/1 var(--cond);padding:3px 6px;border-radius:3px;margin-right:6px;vertical-align:1px;white-space:nowrap}
+.doc.CFTS{color:#fff;background:#5B4BA6}
+.doc.VF{color:#fff;background:#1F7A8C}
+.doc.其他{color:var(--ink-2);background:var(--grey-soft)}
 .controls label{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--ink-2);cursor:pointer}
 .tbl{overflow-x:auto;background:var(--sheet);border:1px solid var(--line)}
 table{border-collapse:collapse;width:100%;min-width:900px}
@@ -165,6 +174,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
 
   <h2>所有含 BL 的 Story <span class="count" id="tblCount"></span></h2>
   <div class="controls">
+    <div class="types" id="types" role="group" aria-label="文件類型"></div>
     <input type="search" id="q" placeholder="搜尋 Story、BL 名稱、檔名或 key">
     <select id="rel" aria-label="Release"></select>
     <select id="st" aria-label="BL 狀態">
@@ -177,10 +187,10 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <div class="tbl">
     <table>
       <thead><tr>
-        <th><button data-sort="key">Story</button></th>
+        <th><button data-sort="doc" data-dir="▲">Story(依文件編號)</button></th>
         <th>Release</th>
-        <th>BL 版次(依建立順序，黃框為期間內新增)</th>
-        <th><button data-sort="last" data-dir="▼">最新 BL 建立</button></th>
+        <th>BL 版次(依版次排序，黃框為期間內新增)</th>
+        <th><button data-sort="last">最新 BL 建立</button></th>
         <th><button data-sort="file">最新附件</button></th>
         <th>Story 狀態</th>
       </tr></thead>
@@ -203,7 +213,9 @@ const STATE_ZH = {open:"進行中", done:"已完成", drop:"DROP"};
 
 const ALLOWED = [7,14,30,60];
 let period = ALLOWED.includes(+location.hash.slice(2)) ? +location.hash.slice(2) : 14;
-let sort = {by:"last", dir:-1};
+let sort = {by:"doc", dir:1};
+let docType = "";
+const TYPES = ["CFTS","VF","其他"];
 const open = new Set();
 
 function cutoff(){ return new Date(REF.getTime() - period*864e5); }
@@ -212,6 +224,7 @@ function isNew(iso){ return iso && new Date(iso) >= cutoff(); }
 function decorate(){
   for (const s of DATA.stories){
     s.lastBL = s.bls[s.bls.length-1];
+    s.order = [TYPES.indexOf(s.doc.type), s.doc.no, s.doc.ver, s.doc.part, s.summary.toLowerCase(), +s.key.split("-").pop()];
     s.lastCreated = s.bls.reduce((m,b)=> b.created > m ? b.created : m, "");
     s.lastFile = s.bls.flatMap(b=>b.files).reduce((m,f)=> f.created > m ? f.created : m, "");
     s.openCount = s.bls.filter(b=>b.state==="open").length;
@@ -300,6 +313,12 @@ function renderFeed(){
   $("#feed").innerHTML = html;
 }
 
+function renderTypes(){
+  const n = t => DATA.stories.filter(s=>!t || s.doc.type===t).length;
+  $("#types").innerHTML = ["",...TYPES].filter(t=>!t || n(t)).map(t=>
+    `<button data-t="${t}" aria-pressed="${t===docType}">${t || "全部"}<span>${n(t)}</span></button>`).join("");
+}
+
 function renderRelOptions(){
   const rels = [...new Set(DATA.stories.map(s=>s.release))].sort();
   $("#rel").innerHTML = `<option value="">全部 Release</option>` + rels.map(r=>`<option>${esc(r)}</option>`).join("");
@@ -308,17 +327,18 @@ function renderRelOptions(){
 function renderTable(){
   const q = $("#q").value.trim().toLowerCase(), rel = $("#rel").value, st = $("#st").value, onlyNew = $("#onlyNew").checked;
   let rows = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
-    (!q || s.text.includes(q)) && (!rel || s.release===rel) &&
+    (!q || s.text.includes(q)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) &&
     (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!onlyNew || f.any));
-  const key = {key:x=>+x.s.key.split("-").pop(), last:x=>x.s.lastCreated, file:x=>x.s.lastFile}[sort.by];
-  rows.sort((a,b)=>{ const A=key(a),B=key(b); return (A<B?-1:A>B?1:0)*sort.dir; });
+  const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
+  const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile}[sort.by];
+  rows.sort((a,b)=> cmp(key(a),key(b))*sort.dir || cmp(a.s.order,b.s.order));
   $("#tblCount").textContent = `${rows.length} / ${DATA.stories.length}`;
   document.querySelectorAll("th button").forEach(b=>{ if(b.dataset.sort===sort.by) b.dataset.dir = sort.dir<0?"▼":"▲"; else delete b.dataset.dir; });
   let html = "";
   for (const {s,f} of rows){
     const ladder = s.bls.map((b,i)=>`${i?'<span class="arrow" aria-hidden="true">›</span>':""}<span class="bl ${b.state} ${isNew(b.created)?"new":""}" title="${esc(b.key)} ${esc(b.status)}\n${esc(b.summary)}">${esc(blLabel(b))}</span>`).join("");
     html += `<tr class="row ${f.any?"has-new":""}" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${open.has(s.key)}">
-      <td class="story"><a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
+      <td class="story">${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
       <td class="rel">${esc(s.release)}</td>
       <td><div class="ladder">${ladder}</div></td>
       <td class="date">${esc(day(s.lastCreated))}</td>
@@ -341,13 +361,14 @@ function renderAll(){
   renderHeadline(); renderSpark(); renderFeed(); renderTable();
 }
 
-decorate(); renderMeta(); renderRelOptions(); renderAll();
+decorate(); renderMeta(); renderTypes(); renderRelOptions(); renderAll();
 $("#foot").innerHTML = `判定方式：「新文件」指在所選期間內建立的 BL sub-task，或在期間內上傳到 BL sub-task 的附件；期間從資料時間往回算。BL 名稱比對區分大小寫。Jira 連結需登入公司帳號才能開啟。`;
 
 $("#period").addEventListener("click", e=>{ const d=+e.target.dataset.d; if(!d) return; period=d; history.replaceState(null,"",`#p${d}`); renderAll(); });
 window.addEventListener("hashchange", ()=>{ const d=+location.hash.slice(2); if(ALLOWED.includes(d)){ period=d; renderAll(); }});
+$("#types").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; docType=b.dataset.t; renderTypes(); renderTable(); });
 ["#q","#rel","#st","#onlyNew"].forEach(s=>$(s).addEventListener("input", renderTable));
-document.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const by=b.dataset.sort; sort = {by, dir: sort.by===by ? -sort.dir : (by==="key"?1:-1)}; renderTable(); }));
+document.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const by=b.dataset.sort; sort = {by, dir: sort.by===by ? -sort.dir : (by==="doc"?1:-1)}; renderTable(); }));
 $("#tbody").addEventListener("click", e=>{ if(e.target.closest("a")) return; const tr=e.target.closest("tr.row"); if(!tr) return; const k=tr.dataset.k; open.has(k)?open.delete(k):open.add(k); renderTable(); });
 $("#tbody").addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }});
 </script>
