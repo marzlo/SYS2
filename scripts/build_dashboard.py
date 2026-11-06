@@ -53,6 +53,9 @@ def state(status_obj):
     name_ = (status_obj or {}).get("name", "")
     if name_ in DROP_STATUSES:
         return "drop"
+    # Jira files the Polarion working statuses under "Done", but the BL is not finished yet
+    if name_ in QUEUE_STATUSES:
+        return "open"
     if ((status_obj or {}).get("statusCategory") or {}).get("key") == "done":
         return "done"
     return "open"
