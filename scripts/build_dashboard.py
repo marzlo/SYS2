@@ -23,6 +23,10 @@ KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 TPE = timezone(timedelta(hours=8))
 
 POLARION_STATUS = os.environ.get("POLARION_STATUS", "Polarion checked")
+POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786")
+# the two tags on the Polarion tab, in this order; any other status in that filter
+# still shows up after them
+QUEUE_STATUSES = ["Polarion in progress", "Polarion in review"]
 DROP_STATUSES = {"DROP", "Dropped", "Cancelled", "Canceled", "Rejected"}
 BL_RE = re.compile(r"BL\s*(\d+(?:\.\d+)?)")
 CFTS_RE = re.compile(r"CFTS[\s_]*(\d+)", re.I)
@@ -152,6 +156,33 @@ def main():
             "bls": bls,
         })
 
+    queue = []
+    if os.path.exists("raw_polarion.json"):
+        for q in json.load(open("raw_polarion.json", encoding="utf-8")):
+            f = q["fields"]
+            st = f.get("status") or {}
+            since = ""   # when the issue entered its current status
+            for h in (q.get("changelog") or {}).get("histories") or []:
+                for it in h.get("items") or []:
+                    if it.get("field") == "status" and it.get("to") == st.get("id"):
+                        since = max(since, h.get("created") or "")
+            parent = f.get("parent") or {}
+            psum = (parent.get("fields") or {}).get("summary") or ""
+            queue.append({
+                "key": q["key"],
+                "summary": (f.get("summary") or "").replace("\t", " "),
+                "type": (f.get("issuetype") or {}).get("name", ""),
+                "status": st.get("name", ""),
+                "assignee": name(f.get("assignee")),
+                "created": tpe(f.get("created")),
+                "updated": tpe(f.get("updated")),
+                "due": f.get("duedate") or "",
+                "since": tpe(since),
+                "parent": parent.get("key", ""),
+                "parentSummary": psum.replace("\t", " "),
+                "doc": doc_id(psum or f.get("summary") or ""),
+            })
+
     data = {
         "generated": datetime.now(TPE).isoformat(timespec="minutes"),
         "site": JIRA_SITE,
@@ -160,6 +191,9 @@ def main():
         "polarion": POLARION_STATUS,
         "filterStories": len(stories),
         "stories": out,
+        "queueJql": POLARION_JQL,
+        "queueStatuses": QUEUE_STATUSES,
+        "queue": queue,
     }
     os.makedirs("site", exist_ok=True)
     with open("site/data.json", "w", encoding="utf-8") as fh:
