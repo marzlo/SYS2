@@ -8,8 +8,8 @@ Rules
 - A sub-task counts as finished when its status is in Jira's "Done" category;
   DROP_STATUSES are shown greyed out instead.
 - "Polarion checked": the time a sub-task (any sub-task of the Story, BL or not)
-  moved into POLARION_STATUS, read from the changelog; without a changelog entry
-  the resolution date of a sub-task currently in that status is used.
+  became done for Polarion, i.e. moved into Polarion checked, Polarion in progress
+  or Polarion in review (COMPLETE_STATUSES), read from the changelog.
 - Every date is converted to Asia/Taipei.
 """
 import json
@@ -27,6 +27,8 @@ POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786")
 # the two tags on the Polarion tab, in this order; any other status in that filter
 # still shows up after them
 QUEUE_STATUSES = ["Polarion in progress", "Polarion in review"]
+# a sub-task in any of these statuses counts as done for Polarion
+COMPLETE_STATUSES = [POLARION_STATUS] + QUEUE_STATUSES
 DROP_STATUSES = {"DROP", "Dropped", "Cancelled", "Canceled", "Rejected"}
 BL_RE = re.compile(r"BL\s*(\d+(?:\.\d+)?)")
 CFTS_RE = re.compile(r"CFTS[\s_]*(\d+)", re.I)
@@ -53,26 +55,35 @@ def state(status_obj):
     name_ = (status_obj or {}).get("name", "")
     if name_ in DROP_STATUSES:
         return "drop"
-    # Jira files the Polarion working statuses under "Done", but the BL is not finished yet
-    if name_ in QUEUE_STATUSES:
-        return "open"
     if ((status_obj or {}).get("statusCategory") or {}).get("key") == "done":
         return "done"
     return "open"
 
 
 def polarion_checked(issue, status_ids):
-    """Latest time this sub-task moved into POLARION_STATUS, or ''."""
+    """When this sub-task (last) became done for Polarion, or ''.
+
+    Done means one of COMPLETE_STATUSES. The time is taken from the changelog: the
+    latest move into one of them from a status outside them, so a later move between
+    them (Polarion checked -> Polarion in progress) keeps the original date. Without a
+    changelog entry, the resolution date of a sub-task currently in one of them."""
     f = issue.get("fields", {})
-    hits = []
-    for h in (issue.get("changelog") or {}).get("histories") or []:
+
+    def inside(sid, sname):
+        return sid in status_ids or sname in COMPLETE_STATUSES
+
+    start = ""
+    histories = sorted((issue.get("changelog") or {}).get("histories") or [],
+                       key=lambda h: h.get("created") or "")
+    for h in histories:
         for it in h.get("items") or []:
-            if it.get("field") == "status" and (
-                    it.get("to") in status_ids or it.get("toString") == POLARION_STATUS):
-                hits.append(h.get("created"))
-    if hits:
-        return tpe(max(hits))
-    if (f.get("status") or {}).get("name") == POLARION_STATUS:
+            if it.get("field") != "status":
+                continue
+            if inside(it.get("to"), it.get("toString")) and not inside(it.get("from"), it.get("fromString")):
+                start = h.get("created") or start
+    if start:
+        return tpe(start)
+    if (f.get("status") or {}).get("name") in COMPLETE_STATUSES:
         return tpe(f.get("resolutiondate") or f.get("statuscategorychangedate"))
     return ""
 
@@ -103,7 +114,7 @@ def main():
     subtasks = {s["key"]: s for s in json.load(open("raw_subtasks.json", encoding="utf-8"))}
     # the status may have been renamed, so match old changelog entries by status id
     status_ids = {(t["fields"].get("status") or {}).get("id") for t in subtasks.values()
-                  if (t["fields"].get("status") or {}).get("name") == POLARION_STATUS} - {None}
+                  if (t["fields"].get("status") or {}).get("name") in COMPLETE_STATUSES} - {None}
 
     out = []
     for s in stories:
@@ -191,7 +202,7 @@ def main():
         "site": JIRA_SITE,
         "jql": JQL,
         "keyword": KEYWORD,
-        "polarion": POLARION_STATUS,
+        "polarion": " / ".join(COMPLETE_STATUSES),
         "filterStories": len(stories),
         "stories": out,
         "queueJql": POLARION_JQL,
