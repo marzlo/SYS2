@@ -45,7 +45,10 @@ a:hover{text-decoration:underline}
 
 /* title block, drawn like the title block of an engineering drawing */
 .title{display:grid;grid-template-columns:1fr auto;gap:0;border:2px solid var(--ink);background:var(--sheet)}
-.title h1{margin:0;padding:14px 18px;font:700 34px/1.1 var(--cond);letter-spacing:.01em;border-right:2px solid var(--ink)}
+.title h1{margin:0;padding:14px 18px;font:700 34px/1.1 var(--cond);letter-spacing:.01em;border-right:2px solid var(--ink);display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.lang{display:inline-flex;border:1px solid var(--ink);border-radius:4px;overflow:hidden;font:600 14px/1 var(--cond);flex:none}
+.lang button{font:inherit;border:0;background:var(--sheet);color:var(--ink);padding:6px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
 .title .meta{display:grid;grid-template-columns:auto auto;font-size:13px}
 .title .meta div{padding:4px 12px;border-bottom:1px solid var(--line)}
 .title .meta div:nth-child(odd){color:var(--ink-2);border-right:1px solid var(--line)}
@@ -162,20 +165,21 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
 <body>
 <div class="wrap">
   <header class="title">
-    <h1>SYS2 文件釋出追蹤</h1>
+    <h1><span data-i18n="title">SYS2 文件釋出追蹤</span>
+      <span class="lang" id="lang" role="group" aria-label="Language"><button data-l="zh">中文</button><button data-l="en">EN</button></span></h1>
     <div class="meta" id="meta"></div>
   </header>
 
-  <nav class="tabs" aria-label="頁籤">
-    <a href="#list" id="tabListLink">Story 清單<span id="tabListCount"></span></a>
-    <a href="#new" id="tabNewLink">期間內的新文件<span id="tabNewCount"></span></a>
+  <nav class="tabs" data-i18n-aria="tabsAria" aria-label="頁籤">
+    <a href="#list" id="tabListLink"><b data-i18n="tabList" style="font-weight:inherit">Story 清單</b><span id="tabListCount"></span></a>
+    <a href="#new" id="tabNewLink"><b data-i18n="tabNew" style="font-weight:inherit">期間內的新文件</b><span id="tabNewCount"></span></a>
   </nav>
 
   <section id="tabNew" hidden>
   <div class="period">
-    <span>新文件的判定期間</span>
-    <div class="seg" id="period" role="group" aria-label="期間">
-      <button data-d="7">7 天</button><button data-d="14">14 天</button><button data-d="30">30 天</button><button data-d="60">60 天</button>
+    <span data-i18n="periodLbl">新文件的判定期間</span>
+    <div class="seg" id="period" role="group" data-i18n-aria="periodAria" aria-label="期間">
+      <button data-d="7"></button><button data-d="14"></button><button data-d="30"></button><button data-d="60"></button>
     </div>
   </div>
 
@@ -184,36 +188,36 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
     <figure class="spark" id="spark"></figure>
   </section>
 
-  <h2>期間內的新文件 <span class="count" id="feedCount"></span></h2>
+  <h2><span data-i18n="feedH">期間內的新文件</span> <span class="count" id="feedCount"></span></h2>
   <div class="feed" id="feed"></div>
   </section>
 
   <section id="tabList">
-  <h2>所有含 BL 的 Story <span class="count" id="tblCount"></span></h2>
+  <h2><span data-i18n="listH">所有含 BL 的 Story</span> <span class="count" id="tblCount"></span></h2>
   <div class="controls">
-    <div class="types" id="types" role="group" aria-label="文件類型"></div>
-    <input type="search" id="q" placeholder="搜尋 Story、BL 名稱、檔名或 key">
+    <div class="types" id="types" role="group" data-i18n-aria="typesAria" aria-label="文件類型"></div>
+    <input type="search" id="q" data-i18n-ph="search" placeholder="搜尋 Story、BL 名稱、檔名或 key">
     <select id="rel" aria-label="Release"></select>
-    <select id="st" aria-label="BL 狀態">
-      <option value="">全部 BL 狀態</option>
-      <option value="open">還有未完成的 BL</option>
-      <option value="done">BL 全部完成</option>
+    <select id="st" data-i18n-aria="stAria" aria-label="BL 狀態">
+      <option value="" data-i18n="stAll">全部 BL 狀態</option>
+      <option value="open" data-i18n="stOpen">還有未完成的 BL</option>
+      <option value="done" data-i18n="stDone">BL 全部完成</option>
     </select>
   </div>
   <div class="controls">
     <span class="lbl">Polarion checked</span>
-    <div class="types" id="pcFilter" role="group" aria-label="Polarion checked 期間"></div>
+    <div class="types" id="pcFilter" role="group" data-i18n-aria="pcAria" aria-label="Polarion checked 期間"></div>
   </div>
   <div class="tbl">
     <table>
       <thead><tr>
-        <th><button data-sort="doc" data-dir="▲">Story(依文件編號)</button></th>
+        <th><button data-sort="doc" data-dir="▲" data-i18n="thStory">Story(依文件編號)</button></th>
         <th>Release</th>
-        <th>BL 版次(依版次排序，<span id="newHint">黃框為近 14 天新增</span>)</th>
-        <th><button data-sort="last">最新 BL 建立</button></th>
-        <th><button data-sort="file">最新附件</button></th>
-        <th><button data-sort="pc">最近 Polarion checked</button></th>
-        <th>Story 狀態</th>
+        <th id="thBL"></th>
+        <th><button data-sort="last" data-i18n="thLast">最新 BL 建立</button></th>
+        <th><button data-sort="file" data-i18n="thFile">最新附件</button></th>
+        <th><button data-sort="pc" data-i18n="thPc">最近 Polarion checked</button></th>
+        <th data-i18n="thStatus">Story 狀態</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -231,7 +235,58 @@ const REF = new Date(DATA.generated);
 const day = iso => iso ? iso.slice(0,10) : "";
 const md = iso => iso ? `${+iso.slice(5,7)}/${+iso.slice(8,10)}` : "";
 const blLabel = b => b.bl != null ? "BL" + (Number.isInteger(b.bl) ? b.bl : b.bl) : DATA.keyword;
-const STATE_ZH = {open:"進行中", done:"已完成", drop:"DROP"};
+const I18N = {
+  zh: {
+    title:"SYS2 文件釋出追蹤", tabsAria:"頁籤", tabList:"Story 清單", tabNew:"期間內的新文件",
+    periodLbl:"新文件的判定期間", periodAria:"期間", days:n=>`${n} 天`,
+    feedH:"期間內的新文件", listH:"所有含 BL 的 Story", typesAria:"文件類型",
+    search:"搜尋 Story、BL 名稱、檔名或 key", stAria:"BL 狀態", stAll:"全部 BL 狀態", stOpen:"還有未完成的 BL", stDone:"BL 全部完成",
+    pcAria:"Polarion checked 期間", thStory:"Story(依文件編號)", thBL:n=>`BL 版次(依版次排序，黃框為近 ${n} 天新增)`,
+    thLast:"最新 BL 建立", thFile:"最新附件", thPc:"最近 Polarion checked", thStatus:"Story 狀態",
+    pcW1:"1 週內", pcWn:w=>`第 ${w} 週`, pcAny:"不限", pcPast:w=>`過去 ${w} 週`,
+    metaSrc:"來源", metaCond:"條件", cond:k=>`Story 下有名稱含「${k}」的 sub-task`, metaTime:"資料時間", tz:"（台北時間）",
+    headline:(p,ns,nb,no,nf,tot,ft)=>`過去 ${p} 天，<span class="n">${ns}</span> 個 Story 有新文件，其中新增 <span class="n">${nb}</span> 份 BL。<small>新 BL 裡有 ${no} 份仍在進行中；BL sub-task 上共新增 ${nf} 個附件。統計範圍是 ${tot} 個含 BL sub-task 的 Story（filter 共 ${ft} 個 Story）。</small>`,
+    headlineNone:p=>`過去 ${p} 天沒有新的 BL 文件。<small>可以把期間拉長，或到「Story 清單」查看每個 Story 的最新版次。</small>`,
+    barTitle:v=>`${v} 份 BL`, sparkAgo:"12 週前", sparkNow:"本週", sparkCap:"每週新建 BL 數（黃色為所選期間）", sparkAria:"每週新 BL 數量",
+    feedCount:n=>`${n} 筆`, feedEmpty:"這段期間沒有新的 BL 或附件。可切換到 30 或 60 天。",
+    wd:["週日","週一","週二","週三","週四","週五","週六"],
+    newBL:d=>`新 BL（${d} 建立）`, oldBL:"既有 BL 新增附件", belongs:"，屬於 ", owner:n=>`，負責人 ${n}`,
+    moreFiles:n=>`還有 ${n} 個附件`, noFiles:"尚無附件", typeAll:"全部", typeOther:"其他", relAll:"全部 Release",
+    created:"建立 ", sep:"，", fileDate:d=>`（${d}）`,
+    noRows:"沒有符合條件的 Story。清除搜尋字或放寬篩選條件即可。",
+    otherChecks:"其他 sub-task 近 4 週 Polarion checked：",
+    foot:p=>`判定方式：「新文件」指在所選期間內建立的 BL sub-task，或在期間內上傳到 BL sub-task 的附件。「Polarion checked」指 Story 底下任一 sub-task 轉為「${p}」狀態的時間，過去 N 週即資料時間往回 N×7 天。期間都從資料時間往回算。BL 名稱比對區分大小寫。Jira 連結需登入公司帳號才能開啟。`
+  },
+  en: {
+    title:"SYS2 Document Release Tracker", tabsAria:"Tabs", tabList:"Story list", tabNew:"New documents",
+    periodLbl:"Look-back period for new documents", periodAria:"Period", days:n=>`${n} days`,
+    feedH:"New documents in the period", listH:"All Stories with a BL sub-task", typesAria:"Document type",
+    search:"Search Story, BL name, file name or key", stAria:"BL status", stAll:"All BL statuses", stOpen:"Has an open BL", stDone:"All BLs finished",
+    pcAria:"Polarion checked period", thStory:"Story (by document no.)", thBL:n=>`BL versions (amber = new in ${n} days)`,
+    thLast:"Latest BL created", thFile:"Latest attachment", thPc:"Last Polarion checked", thStatus:"Story status",
+    pcW1:"Within 1 wk", pcWn:w=>`Week ${w}`, pcAny:"Any time", pcPast:w=>`Last ${w} wk${w>1?"s":""}`,
+    metaSrc:"Source", metaCond:"Condition", cond:k=>`Story has a sub-task whose name contains "${k}"`, metaTime:"Data as of", tz:" (Taipei time)",
+    headline:(p,ns,nb,no,nf,tot,ft)=>`In the last ${p} days, <span class="n">${ns}</span> ${ns===1?"Story":"Stories"} got new documents, including <span class="n">${nb}</span> new ${nb===1?"BL":"BLs"}.<small>${no} of the new BLs are still open; ${nf} attachments were added to BL sub-tasks. Scope: ${tot} Stories with a BL sub-task (${ft} Stories in the filter).</small>`,
+    headlineNone:p=>`No new BL documents in the last ${p} days.<small>Try a longer period, or check each Story's latest BL in the Story list.</small>`,
+    barTitle:v=>`${v} BL`, sparkAgo:"12 wks ago", sparkNow:"This week", sparkCap:"New BLs per week (amber = selected period)", sparkAria:"New BLs per week",
+    feedCount:n=>`${n} ${n===1?"item":"items"}`, feedEmpty:"No new BLs or attachments in this period. Try 30 or 60 days.",
+    wd:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+    newBL:d=>`New BL (created ${d})`, oldBL:"New attachment on an existing BL", belongs:", in ", owner:n=>`, owner ${n}`,
+    moreFiles:n=>`${n} more ${n===1?"attachment":"attachments"}`, noFiles:"No attachments", typeAll:"All", typeOther:"Other", relAll:"All releases",
+    created:"Created ", sep:", ", fileDate:d=>` (${d})`,
+    noRows:"No Stories match. Clear the search or loosen the filters.",
+    otherChecks:"Other sub-tasks Polarion checked in the last 4 weeks: ",
+    foot:p=>`How this works: "new documents" are BL sub-tasks created in the selected period, or attachments uploaded to a BL sub-task in that period. "Polarion checked" is the time any sub-task of the Story moved to the "${p}" status; "last N weeks" means N×7 days back. All periods count back from the data time. BL name matching is case-sensitive. Jira links need a company login.`
+  }
+};
+function pickLang(){
+  const q = new URLSearchParams(location.search).get("lang");
+  if (q === "zh" || q === "en") return q;
+  try { const s = localStorage.getItem("sys2-lang"); if (s === "zh" || s === "en") return s; } catch(e) {}
+  return /^zh/i.test(navigator.language || "") ? "zh" : "en";
+}
+let LANG = pickLang();
+const t = (k, ...a) => { const v = I18N[LANG][k]; return typeof v === "function" ? v(...a) : v; };
 
 const ALLOWED = [7,14,30,60];
 let period = 14;
@@ -264,7 +319,7 @@ function weekOf(iso){
   return w <= 4 ? w : 0;
 }
 function pcBadge(iso, w){
-  return w ? `<span class="pc w${w}" title="${esc(iso.replace("T"," ").slice(0,16))}">${w===1?"1 週內":`第 ${w} 週`}</span>` : "";
+  return w ? `<span class="pc w${w}" title="${esc(iso.replace("T"," ").slice(0,16))}">${w===1?t("pcW1"):t("pcWn",w)}</span>` : "";
 }
 
 function fresh(s){
@@ -276,9 +331,9 @@ function fresh(s){
 function renderMeta(){
   const g = new Date(DATA.generated);
   $("#meta").innerHTML = `
-    <div>來源</div><div><a href="https://${esc(DATA.site)}/issues/?jql=${encodeURIComponent(DATA.jql)}" target="_blank" rel="noopener">${esc(DATA.jql)}</a></div>
-    <div>條件</div><div>Story 下有名稱含「${esc(DATA.keyword)}」的 sub-task</div>
-    <div>資料時間</div><div>${esc(DATA.generated.replace("T"," ").slice(0,16))} （台北時間）</div>`;
+    <div>${t("metaSrc")}</div><div><a href="https://${esc(DATA.site)}/issues/?jql=${encodeURIComponent(DATA.jql)}" target="_blank" rel="noopener">${esc(DATA.jql)}</a></div>
+    <div>${t("metaCond")}</div><div>${t("cond", esc(DATA.keyword))}</div>
+    <div>${t("metaTime")}</div><div>${esc(DATA.generated.replace("T"," ").slice(0,16))}${t("tz")}</div>`;
 }
 
 function renderHeadline(){
@@ -288,8 +343,8 @@ function renderHeadline(){
   const nOpen = all.reduce((n,x)=>n+x.f.bls.filter(b=>b.state==="open").length,0);
   const nFile = all.reduce((n,x)=>n+x.f.files.length,0);
   $("#headline").innerHTML = nStory
-    ? `過去 ${period} 天，<span class="n">${nStory}</span> 個 Story 有新文件，其中新增 <span class="n">${nBL}</span> 份 BL。<small>新 BL 裡有 ${nOpen} 份仍在進行中；BL sub-task 上共新增 ${nFile} 個附件。統計範圍是 ${DATA.stories.length} 個含 BL sub-task 的 Story（filter 共 ${DATA.filterStories} 個 Story）。</small>`
-    : `過去 ${period} 天沒有新的 BL 文件。<small>可以把期間拉長，或在下方表格查看每個 Story 的最新版次。</small>`;
+    ? t("headline", period, nStory, nBL, nOpen, nFile, DATA.stories.length, DATA.filterStories)
+    : t("headlineNone", period);
 }
 
 function renderSpark(){
@@ -305,11 +360,11 @@ function renderSpark(){
   counts.forEach((v,i)=>{
     const h = Math.round((H-18)*v/max), x = i*bw+2, y = H-14-h;
     const weekEnd = end - (weeks-1-i)*7*864e5;
-    bars += `<rect class="bar ${weekEnd > c ? "in":""}" x="${x}" y="${y}" width="${bw-4}" height="${Math.max(h,1)}"><title>${v} 份 BL</title></rect>`;
+    bars += `<rect class="bar ${weekEnd > c ? "in":""}" x="${x}" y="${y}" width="${bw-4}" height="${Math.max(h,1)}"><title>${t("barTitle", v)}</title></rect>`;
     if (v) bars += `<text x="${x+(bw-4)/2}" y="${y-3}" text-anchor="middle">${v}</text>`;
   });
-  bars += `<text x="0" y="${H-1}">12 週前</text><text x="${W}" y="${H-1}" text-anchor="end">本週</text>`;
-  $("#spark").innerHTML = `<figcaption>每週新建 BL 數（黃色為所選期間）</figcaption><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="每週新 BL 數量">${bars}</svg>`;
+  bars += `<text x="0" y="${H-1}">${t("sparkAgo")}</text><text x="${W}" y="${H-1}" text-anchor="end">${t("sparkNow")}</text>`;
+  $("#spark").innerHTML = `<figcaption>${t("sparkCap")}</figcaption><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t("sparkAria")}">${bars}</svg>`;
 }
 
 function renderFeed(){
@@ -322,15 +377,15 @@ function renderFeed(){
     entries.push({s,b,nb,nf,when});
   }
   entries.sort((a,b)=> a.when < b.when ? 1 : -1);
-  $("#feedCount").textContent = entries.length ? `${entries.length} 筆` : "";
-  if (!entries.length){ $("#feed").innerHTML = `<div class="empty">這段期間沒有新的 BL 或附件。可切換到 30 或 60 天。</div>`; return; }
+  $("#feedCount").textContent = entries.length ? t("feedCount", entries.length) : "";
+  if (!entries.length){ $("#feed").innerHTML = `<div class="empty">${t("feedEmpty")}</div>`; return; }
   const byDay = new Map();
   for (const e of entries){ const d = day(e.when); if(!byDay.has(d)) byDay.set(d,[]); byDay.get(d).push(e); }
-  const wd = ["日","一","二","三","四","五","六"];
+  const wd = t("wd");
   let html = "";
   for (const [d, list] of byDay){
     const wday = wd[new Date(d+"T12:00:00+08:00").getUTCDay()];
-    html += `<div class="day"><time datetime="${d}"><b>${md(d)}</b>週${wday}</time><div class="items">`;
+    html += `<div class="day"><time datetime="${d}"><b>${md(d)}</b>${wday}</time><div class="items">`;
     for (const {s,b,nb,nf} of list){
       const files = (nb ? b.files : nf).slice(0,6);
       const more = (nb ? b.files.length : nf.length) - files.length;
@@ -338,8 +393,8 @@ function renderFeed(){
         <span class="bl ${b.state}" title="${esc(b.status)}">${esc(blLabel(b))}</span>
         <div class="what">
           <a class="k" href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}
-          <div class="sub">${nb ? `新 BL（${md(b.created)} 建立）` : "既有 BL 新增附件"}，屬於 <a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a> ${esc(s.summary)}${b.assignee ? `，負責人 ${esc(b.assignee)}` : ""}</div>
-          ${files.length ? `<ul>${files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)} <span class="sub">${md(f.created)}${f.author?` ${esc(f.author)}`:""}</span></li>`).join("")}${more>0?`<li>還有 ${more} 個附件</li>`:""}</ul>` : `<div class="sub">尚無附件</div>`}
+          <div class="sub">${nb ? t("newBL", md(b.created)) : t("oldBL")}${t("belongs")}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a> ${esc(s.summary)}${b.assignee ? t("owner", esc(b.assignee)) : ""}</div>
+          ${files.length ? `<ul>${files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)} <span class="sub">${md(f.created)}${f.author?` ${esc(f.author)}`:""}</span></li>`).join("")}${more>0?`<li>${t("moreFiles", more)}</li>`:""}</ul>` : `<div class="sub">${t("noFiles")}</div>`}
         </div>
         <span class="pill ${b.state}">${esc(b.status)}</span>
       </div>`;
@@ -350,20 +405,22 @@ function renderFeed(){
 }
 
 function renderTypes(){
-  const n = t => DATA.stories.filter(s=>!t || s.doc.type===t).length;
-  $("#types").innerHTML = ["",...TYPES].filter(t=>!t || n(t)).map(t=>
-    `<button data-t="${t}" aria-pressed="${t===docType}">${t || "全部"}<span>${n(t)}</span></button>`).join("");
+  const n = ty => DATA.stories.filter(s=>!ty || s.doc.type===ty).length;
+  $("#types").innerHTML = ["",...TYPES].filter(ty=>!ty || n(ty)).map(ty=>
+    `<button data-t="${ty}" aria-pressed="${ty===docType}">${!ty ? t("typeAll") : ty==="其他" ? t("typeOther") : ty}<span>${n(ty)}</span></button>`).join("");
 }
 
 function renderPcFilter(){
   const n = w => DATA.stories.filter(s=>s.pcWeek && s.pcWeek<=w).length;
   $("#pcFilter").innerHTML = [0,1,2,3,4].map(w=>
-    `<button data-w="${w}" aria-pressed="${w===pcWeeks}">${w? `過去 ${w} 週<span>${n(w)}</span>` : "不限"}</button>`).join("");
+    `<button data-w="${w}" aria-pressed="${w===pcWeeks}">${w? `${t("pcPast", w)}<span>${n(w)}</span>` : t("pcAny")}</button>`).join("");
 }
 
 function renderRelOptions(){
   const rels = [...new Set(DATA.stories.map(s=>s.release))].sort();
-  $("#rel").innerHTML = `<option value="">全部 Release</option>` + rels.map(r=>`<option>${esc(r)}</option>`).join("");
+  const keep = $("#rel").value;
+  $("#rel").innerHTML = `<option value="">${t("relAll")}</option>` + rels.map(r=>`<option>${esc(r)}</option>`).join("");
+  $("#rel").value = keep;
 }
 
 function renderTable(){
@@ -390,13 +447,13 @@ function renderTable(){
     if (open.has(s.key)){
       html += `<tr class="detail"><td colspan="7"><div class="det"><table><tbody>${[...s.bls].reverse().map(b=>`
         <tr><td style="width:64px"><span class="bl ${b.state} ${isNew(b.created)?"new":""}">${esc(blLabel(b))}</span></td>
-        <td><a href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}<div class="sub" style="color:var(--ink-2);font-size:13px">建立 ${esc(b.created.replace("T"," ").slice(0,16))}${b.assignee?`，${esc(b.assignee)}`:""}</div></td>
+        <td><a href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}<div class="sub" style="color:var(--ink-2);font-size:13px">${t("created")}${esc(b.created.replace("T"," ").slice(0,16))}${b.assignee?`${t("sep")}${esc(b.assignee)}`:""}</div></td>
         <td style="width:150px"><span class="pill ${b.state}">${esc(b.status)}</span>${b.checked?`<div style="font-size:12px;color:var(--ink-2);margin-top:4px">checked ${esc(day(b.checked))} ${pcBadge(b.checked, weekOf(b.checked))}</div>`:""}</td>
-        <td>${b.files.length?`<ul>${b.files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)}（${md(f.created)}）</li>`).join("")}</ul>`:'<span style="color:var(--ink-2)">尚無附件</span>'}</td></tr>`).join("")}
+        <td>${b.files.length?`<ul>${b.files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)}${t("fileDate", md(f.created))}</li>`).join("")}</ul>`:`<span style="color:var(--ink-2)">${t("noFiles")}</span>`}</td></tr>`).join("")}
       </tbody></table>${otherChecks(s)}</div></td></tr>`;
     }
   }
-  $("#tbody").innerHTML = html || `<tr><td colspan="7" class="empty">沒有符合條件的 Story。清除搜尋字或放寬篩選條件即可。</td></tr>`;
+  $("#tbody").innerHTML = html || `<tr><td colspan="7" class="empty">${t("noRows")}</td></tr>`;
 }
 
 // non-BL sub-tasks checked in the last 4 weeks (BL ones are shown in the table above)
@@ -404,7 +461,7 @@ function otherChecks(s){
   const bl = new Set(s.bls.map(b=>b.key));
   const list = s.checks.filter(c=>!bl.has(c.key) && weekOf(c.when));
   if (!list.length) return "";
-  return `<div style="margin-top:8px;font-size:13px;color:var(--ink-2)">其他 sub-task 近 4 週 Polarion checked：${list.map(c=>`<div><a href="${browse(c.key)}" target="_blank" rel="noopener">${esc(c.key)}</a> ${esc(c.summary)} ${esc(day(c.when))} ${pcBadge(c.when, weekOf(c.when))}</div>`).join("")}</div>`;
+  return `<div style="margin-top:8px;font-size:13px;color:var(--ink-2)">${t("otherChecks")}${list.map(c=>`<div><a href="${browse(c.key)}" target="_blank" rel="noopener">${esc(c.key)}</a> ${esc(c.summary)} ${esc(day(c.when))} ${pcBadge(c.when, weekOf(c.when))}</div>`).join("")}</div>`;
 }
 
 function showTab(){
@@ -417,14 +474,32 @@ function showTab(){
 
 function renderAll(){
   document.querySelectorAll("#period button").forEach(b=>b.setAttribute("aria-pressed", +b.dataset.d===period));
-  $("#newHint").textContent = `黃框為近 ${period} 天新增`;
+  document.querySelectorAll("#period button").forEach(b=>b.textContent = t("days", +b.dataset.d));
+  $("#thBL").textContent = t("thBL", period);
   renderHeadline(); renderSpark(); renderFeed(); renderTable();
   $("#tabListCount").textContent = DATA.stories.length;
   $("#tabNewCount").textContent = $("#feedCount").textContent;
 }
 
-decorate(); renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderAll(); showTab();
-$("#foot").innerHTML = `判定方式：「新文件」指在所選期間內建立的 BL sub-task，或在期間內上傳到 BL sub-task 的附件。「Polarion checked」指 Story 底下任一 sub-task 轉為「${esc(DATA.polarion)}」狀態的時間，過去 N 週即資料時間往回 N×7 天。期間都從資料時間往回算。BL 名稱比對區分大小寫。Jira 連結需登入公司帳號才能開啟。`;
+decorate(); applyLang(); showTab();
+// static labels marked with data-i18n / data-i18n-ph / data-i18n-aria, plus everything drawn by JS
+function applyLang(){
+  document.documentElement.lang = LANG === "zh" ? "zh-Hant" : "en";
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>el.placeholder = t(el.dataset.i18nPh));
+  document.querySelectorAll("[data-i18n-aria]").forEach(el=>el.setAttribute("aria-label", t(el.dataset.i18nAria)));
+  document.querySelectorAll("#lang button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.l===LANG));
+  $("#foot").innerHTML = t("foot", esc(DATA.polarion));
+  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderAll();
+}
+$("#lang").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if (!b || b.dataset.l === LANG) return;
+  LANG = b.dataset.l;
+  try { localStorage.setItem("sys2-lang", LANG); } catch(err) {}
+  const u = new URL(location.href); u.searchParams.set("lang", LANG); history.replaceState(null, "", u);
+  applyLang();
+});
 
 $("#period").addEventListener("click", e=>{ const d=+e.target.dataset.d; if(!d) return; period=d; renderAll(); });
 window.addEventListener("hashchange", showTab);
