@@ -28,6 +28,8 @@ JIRA_EMAIL = os.environ.get("JIRA_EMAIL", "")
 JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", "")
 JQL = os.environ.get("JIRA_JQL", "filter=11923")
 KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
+# second list on its own tab: issues waiting in the Polarion statuses
+POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786")
 
 STORY_FIELDS = ["summary", "status", "issuetype", "assignee", "created", "updated",
                 "duedate", "parent", "subtasks"]
@@ -96,6 +98,13 @@ def main():
         json.dump(stories, f, ensure_ascii=False)
     with open("raw_subtasks.json", "w", encoding="utf-8") as f:
         json.dump(list(subtasks.values()), f, ensure_ascii=False)
+
+    # an empty result is normal here (nothing waiting in Polarion), so no guard
+    queue = search(POLARION_JQL, ["summary", "status", "issuetype", "assignee", "created",
+                                  "updated", "duedate", "parent"], expand="changelog")
+    print(f"Polarion list '{POLARION_JQL}': {len(queue)} issues")
+    with open("raw_polarion.json", "w", encoding="utf-8") as f:
+        json.dump(queue, f, ensure_ascii=False)
 
 
 if __name__ == "__main__":
