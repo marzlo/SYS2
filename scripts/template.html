@@ -213,6 +213,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <div class="controls">
     <span class="lbl">Polarion checked</span>
     <div class="types" id="pcFilter" role="group" data-i18n-aria="pcAria" aria-label="Polarion checked 期間"></div>
+    <select id="sst" data-i18n-aria="sstAria" aria-label="Story 狀態"></select>
   </div>
   <div class="tbl">
     <table>
@@ -283,7 +284,7 @@ const I18N = {
     feedCount:n=>`${n} 筆`, feedEmpty:"這段期間沒有新的 BL 或附件。可切換到 30 或 60 天。",
     wd:["週日","週一","週二","週三","週四","週五","週六"],
     newBL:d=>`新 BL（${d} 建立）`, oldBL:"既有 BL 新增附件", belongs:"，屬於 ", owner:n=>`，負責人 ${n}`,
-    moreFiles:n=>`還有 ${n} 個附件`, noFiles:"尚無附件", typeAll:"全部", typeOther:"其他", relAll:"全部 Release",
+    moreFiles:n=>`還有 ${n} 個附件`, noFiles:"尚無附件", typeAll:"全部", typeOther:"其他", relAll:"全部 Release", sstAria:"Story 狀態", sstAll:"全部 Story 狀態",
     created:"建立 ", sep:"，", fileDate:d=>`（${d}）`,
     noRows:"沒有符合條件的 Story。清除搜尋字或放寬篩選條件即可。",
     otherChecks:"其他 sub-task 近 4 週 Polarion checked：",
@@ -307,7 +308,7 @@ const I18N = {
     feedCount:n=>`${n} ${n===1?"item":"items"}`, feedEmpty:"No new BLs or attachments in this period. Try 30 or 60 days.",
     wd:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
     newBL:d=>`New BL (created ${d})`, oldBL:"New attachment on an existing BL", belongs:", in ", owner:n=>`, owner ${n}`,
-    moreFiles:n=>`${n} more ${n===1?"attachment":"attachments"}`, noFiles:"No attachments", typeAll:"All", typeOther:"Other", relAll:"All releases",
+    moreFiles:n=>`${n} more ${n===1?"attachment":"attachments"}`, noFiles:"No attachments", typeAll:"All", typeOther:"Other", relAll:"All releases", sstAria:"Story status", sstAll:"All Story statuses",
     created:"Created ", sep:", ", fileDate:d=>` (${d})`,
     noRows:"No Stories match. Clear the search or loosen the filters.",
     otherChecks:"Other sub-tasks Polarion checked in the last 4 weeks: ",
@@ -451,6 +452,16 @@ function renderPcFilter(){
     `<button data-w="${w}" aria-pressed="${w===pcWeeks}">${w? `${t("pcPast", w)}<span>${n(w)}</span>` : t("pcAny")}</button>`).join("");
 }
 
+// Story status filter: every status present in the data, most common first, with counts
+function renderStoryStatusOptions(){
+  const keep = $("#sst").value;
+  const counts = {};
+  for (const s of DATA.stories) counts[s.status] = (counts[s.status]||0) + 1;
+  const list = Object.keys(counts).sort((a,b)=> counts[b]-counts[a] || a.localeCompare(b));
+  $("#sst").innerHTML = `<option value="">${t("sstAll")}</option>` + list.map(x=>`<option value="${esc(x)}">${esc(x)} (${counts[x]})</option>`).join("");
+  $("#sst").value = keep;
+}
+
 function renderRelOptions(){
   const rels = [...new Set(DATA.stories.map(s=>s.release))].sort();
   const keep = $("#rel").value;
@@ -459,10 +470,10 @@ function renderRelOptions(){
 }
 
 function renderTable(){
-  const q = $("#q").value.trim().toLowerCase(), rel = $("#rel").value, st = $("#st").value;
+  const q = $("#q").value.trim().toLowerCase(), rel = $("#rel").value, st = $("#st").value, sst = $("#sst").value;
   let rows = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
     (!q || s.text.includes(q)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) &&
-    (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
+    (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
   const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
   const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck}[sort.by];
   rows.sort((a,b)=> cmp(key(a),key(b))*sort.dir || cmp(a.s.order,b.s.order));
@@ -559,7 +570,7 @@ function applyLang(){
   document.querySelectorAll("[data-i18n-aria]").forEach(el=>el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   document.querySelectorAll("#lang button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.l===LANG));
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
-  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderAll(); renderQueue();
+  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderAll(); renderQueue();
 }
 $("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; renderQueue(); });
 $("#lang").addEventListener("click", e=>{
@@ -574,7 +585,7 @@ $("#period").addEventListener("click", e=>{ const d=+e.target.dataset.d; if(!d) 
 window.addEventListener("hashchange", showTab);
 $("#pcFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; pcWeeks=+b.dataset.w; renderPcFilter(); renderTable(); });
 $("#types").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; docType=b.dataset.t; renderTypes(); renderTable(); });
-["#q","#rel","#st"].forEach(s=>$(s).addEventListener("input", renderTable));
+["#q","#rel","#st","#sst"].forEach(s=>$(s).addEventListener("input", renderTable));
 document.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const by=b.dataset.sort; sort = {by, dir: sort.by===by ? -sort.dir : (by==="doc"?1:-1)}; renderTable(); }));
 $("#tbody").addEventListener("click", e=>{ if(e.target.closest("a")) return; const tr=e.target.closest("tr.row"); if(!tr) return; const k=tr.dataset.k; open.has(k)?open.delete(k):open.add(k); renderTable(); });
 $("#tbody").addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }});
