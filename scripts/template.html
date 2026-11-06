@@ -125,6 +125,11 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .pc.w1{background:var(--green);color:var(--sheet)}
 .pc.w2{background:var(--green-soft)}
 .controls .lbl{font-size:14px;color:var(--ink-2)}
+.qs{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.qs.qip{background:var(--blue)} .qs.qrv{background:#7B5FD0} .qs.qot{background:var(--grey)}
+.pill.qip{color:var(--blue);border-color:var(--blue);background:var(--blue-soft)}
+.pill.qrv{color:#7B5FD0;border-color:#7B5FD0}
+.overdue{color:var(--amber);font-weight:600}
 .controls label{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--ink-2);cursor:pointer}
 .tbl{overflow-x:auto;background:var(--sheet);border:1px solid var(--line)}
 table{border-collapse:collapse;width:100%;min-width:900px}
@@ -173,6 +178,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <nav class="tabs" data-i18n-aria="tabsAria" aria-label="頁籤">
     <a href="#list" id="tabListLink"><b data-i18n="tabList" style="font-weight:inherit">Story 清單</b><span id="tabListCount"></span></a>
     <a href="#new" id="tabNewLink"><b data-i18n="tabNew" style="font-weight:inherit">期間內的新文件</b><span id="tabNewCount"></span></a>
+    <a href="#polarion" id="tabQueueLink"><b data-i18n="tabQueue" style="font-weight:inherit">Polarion 處理中</b><span id="tabQueueCount"></span></a>
   </nav>
 
   <section id="tabNew" hidden>
@@ -223,6 +229,29 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
     </table>
   </div>
   </section>
+
+  <section id="tabQueue" hidden>
+  <h2><span data-i18n="queueH">Polarion 處理中的項目</span> <span class="count" id="qCount"></span></h2>
+  <div class="controls">
+    <div class="types" id="qFilter" role="group" data-i18n-aria="qAria" aria-label="Polarion 狀態"></div>
+    <a class="lbl" id="qSrc" target="_blank" rel="noopener"></a>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr>
+        <th data-i18n="qTicket">Ticket</th>
+        <th data-i18n="qStory">所屬 Story</th>
+        <th data-i18n="qStatus">狀態</th>
+        <th data-i18n="qOwner">負責人</th>
+        <th data-i18n="qSince">進入此狀態</th>
+        <th data-i18n="qDays">停留天數</th>
+        <th data-i18n="qDue">Due</th>
+        <th data-i18n="qUpdated">最後更新</th>
+      </tr></thead>
+      <tbody id="qBody"></tbody>
+    </table>
+  </div>
+  </section>
   <footer id="foot"></footer>
 </div>
 
@@ -237,6 +266,9 @@ const md = iso => iso ? `${+iso.slice(5,7)}/${+iso.slice(8,10)}` : "";
 const blLabel = b => b.bl != null ? "BL" + (Number.isInteger(b.bl) ? b.bl : b.bl) : DATA.keyword;
 const I18N = {
   zh: {
+    tabQueue:"Polarion 處理中", queueH:"Polarion 處理中的項目", qAria:"Polarion 狀態", qTicket:"Ticket", qStory:"所屬 Story",
+    qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新",
+    qDaysN:n=>`${n} 天`, qOpen:j=>`在 Jira 開啟 ${j}`, qEmpty:"目前沒有項目。",
     title:"SYS2 文件釋出追蹤", tabsAria:"頁籤", tabList:"Story 清單", tabNew:"期間內的新文件",
     periodLbl:"新文件的判定期間", periodAria:"期間", days:n=>`${n} 天`,
     feedH:"期間內的新文件", listH:"所有含 BL 的 Story", typesAria:"文件類型",
@@ -258,6 +290,9 @@ const I18N = {
     foot:p=>`判定方式：「新文件」指在所選期間內建立的 BL sub-task，或在期間內上傳到 BL sub-task 的附件。「Polarion checked」指 Story 底下任一 sub-task 轉為「${p}」狀態的時間，過去 N 週即資料時間往回 N×7 天。期間都從資料時間往回算。BL 名稱比對區分大小寫。Jira 連結需登入公司帳號才能開啟。`
   },
   en: {
+    tabQueue:"In Polarion", queueH:"Items in Polarion", qAria:"Polarion status", qTicket:"Ticket", qStory:"Parent Story",
+    qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated",
+    qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>`Open ${j} in Jira`, qEmpty:"Nothing here right now.",
     title:"SYS2 Document Release Tracker", tabsAria:"Tabs", tabList:"Story list", tabNew:"New documents",
     periodLbl:"Look-back period for new documents", periodAria:"Period", days:n=>`${n} days`,
     feedH:"New documents in the period", listH:"All Stories with a BL sub-task", typesAria:"Document type",
@@ -465,11 +500,44 @@ function otherChecks(s){
 }
 
 function showTab(){
-  const tab = location.hash === "#new" ? "new" : "list";
-  $("#tabNew").hidden = tab !== "new";
-  $("#tabList").hidden = tab !== "list";
-  $("#tabNewLink").setAttribute("aria-current", tab==="new" ? "page" : "false");
-  $("#tabListLink").setAttribute("aria-current", tab==="list" ? "page" : "false");
+  const tab = location.hash === "#new" ? "new" : location.hash === "#polarion" ? "queue" : "list";
+  for (const [id, name] of [["New","new"],["List","list"],["Queue","queue"]]){
+    $("#tab"+id).hidden = tab !== name;
+    $("#tab"+id+"Link").setAttribute("aria-current", tab===name ? "page" : "false");
+  }
+}
+
+// ---- Polarion tab: a flat list of the issues in the second filter, tagged by status
+let qStatus = "";
+function queueStatuses(){
+  const extra = [...new Set(DATA.queue.map(q=>q.status))].filter(x=>!DATA.queueStatuses.includes(x));
+  return [...DATA.queueStatuses, ...extra];
+}
+function qClass(st){ const i = DATA.queueStatuses.indexOf(st); return i===0 ? "qip" : i===1 ? "qrv" : "qot"; }
+function renderQueue(){
+  const sts = queueStatuses();
+  const n = st => DATA.queue.filter(q=>!st || q.status===st).length;
+  $("#qFilter").innerHTML = ["",...sts].map(st=>
+    `<button data-s="${esc(st)}" aria-pressed="${st===qStatus}">${st ? `<i class="qs ${qClass(st)}"></i>${esc(st)}` : t("typeAll")}<span>${n(st)}</span></button>`).join("");
+  $("#qSrc").href = `https://${DATA.site}/issues/?jql=${encodeURIComponent(DATA.queueJql)}`;
+  $("#qSrc").textContent = t("qOpen", DATA.queueJql);
+  $("#qCount").textContent = DATA.queue.length;
+  $("#tabQueueCount").textContent = DATA.queue.length;
+  const today = DATA.generated.slice(0,10);
+  const rows = DATA.queue.filter(q=>!qStatus || q.status===qStatus)
+    .sort((a,b)=> sts.indexOf(a.status)-sts.indexOf(b.status) || (a.since||a.updated).localeCompare(b.since||b.updated));
+  $("#qBody").innerHTML = rows.map(q=>{
+    const days = q.since ? Math.floor((REF - new Date(q.since))/864e5) : null;
+    return `<tr>
+      <td class="story">${q.doc.label ? `<span class="doc ${q.doc.type}">${esc(q.doc.label)}</span>` : ""}<a href="${browse(q.key)}" target="_blank" rel="noopener">${esc(q.key)}</a><div>${esc(q.summary)}</div></td>
+      <td class="rel">${q.parent ? `<a href="${browse(q.parent)}" target="_blank" rel="noopener">${esc(q.parent)}</a> ${esc(q.parentSummary)}` : "—"}</td>
+      <td><span class="pill ${qClass(q.status)}">${esc(q.status)}</span></td>
+      <td>${esc(q.assignee) || "—"}</td>
+      <td class="date">${q.since ? esc(q.since.replace("T"," ").slice(0,16)) : "—"}</td>
+      <td class="date">${days==null ? "—" : t("qDaysN", days)}</td>
+      <td class="date ${q.due && q.due < today ? "overdue" : ""}">${esc(q.due) || "—"}</td>
+      <td class="date">${esc(day(q.updated))}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="empty">${t("qEmpty")}</td></tr>`;
 }
 
 function renderAll(){
@@ -491,8 +559,9 @@ function applyLang(){
   document.querySelectorAll("[data-i18n-aria]").forEach(el=>el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   document.querySelectorAll("#lang button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.l===LANG));
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
-  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderAll();
+  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderAll(); renderQueue();
 }
+$("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; renderQueue(); });
 $("#lang").addEventListener("click", e=>{
   const b = e.target.closest("button"); if (!b || b.dataset.l === LANG) return;
   LANG = b.dataset.l;
