@@ -345,6 +345,7 @@ function decorate(){
     s.lastCheck = s.checks.length ? s.checks[0].when : "";
     s.pcWeek = weekOf(s.lastCheck);
     s.text = [s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
+    s.norm = s.text.replace(/[\s_\-:.]+/g, "");   // "CFTS 004", "cfts_004" and "CFTS004" all match
   }
 }
 // 1 = within the last 7 days, 2 = 8-14 days ago ... ; 0 = none or older than 4 weeks
@@ -473,8 +474,12 @@ function renderRelOptions(){
 
 function renderTable(){
   const q = $("#q").value.trim().toLowerCase(), rel = $("#rel").value, st = $("#st").value, sst = $("#sst").value;
+  // "CFTS 4" / "VF155" style queries pick the document number exactly; anything else is a
+  // text search that ignores spaces, underscores, dashes, colons and dots
+  const qn = q.replace(/[\s_\-:.]+/g, ""), qd = qn.match(/^(cfts|vf)0*(\d+)$/);
+  const matchQ = s => qd ? (s.doc.type.toLowerCase()===qd[1] && s.doc.no===+qd[2]) : (s.text.includes(q) || s.norm.includes(qn));
   let rows = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
-    (!q || s.text.includes(q)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) &&
+    (!q || matchQ(s)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) &&
     (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
   const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
   const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck}[sort.by];
