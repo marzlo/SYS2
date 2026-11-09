@@ -423,8 +423,10 @@ function renderFeed(){
     const wday = wd[new Date(d+"T12:00:00+08:00").getUTCDay()];
     html += `<div class="day"><time datetime="${d}"><b>${md(d)}</b>${wday}</time><div class="items">`;
     for (const {s,b,nb,nf} of list){
-      const files = (nb ? b.files : nf).slice(0,6);
-      const more = (nb ? b.files.length : nf.length) - files.length;
+      // list the BL's attachments newest first (new ones are highlighted), not only the
+      // new ones, so the document itself is visible even when only a screenshot was added
+      const files = b.files.slice(0,6);
+      const more = b.files.length - files.length;
       html += `<div class="item">
         <span class="bl ${b.state}" title="${esc(b.status)}">${esc(blLabel(b))}</span>
         <div class="what">
