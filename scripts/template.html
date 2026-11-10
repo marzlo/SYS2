@@ -49,6 +49,17 @@ a:hover{text-decoration:underline}
 .lang{display:inline-flex;border:1px solid var(--ink);border-radius:4px;overflow:hidden;font:600 14px/1 var(--cond);flex:none}
 .lang button{font:inherit;border:0;background:var(--sheet);color:var(--ink);padding:6px 10px;cursor:pointer}
 .lang button[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.rf{font:600 14px/1 var(--cond);border:1px solid var(--ink);border-radius:4px;background:var(--sheet);color:var(--ink);padding:6px 10px;cursor:pointer}
+.rf:disabled{opacity:.6;cursor:progress}
+#rfMsg{display:block;width:100%;text-align:right;font:400 12px/1.4 var(--sans);color:var(--ink-2);min-height:0}
+#rfMsg.err{color:var(--amber);font-weight:600}
+dialog#rfDlg{border:2px solid var(--ink);border-radius:6px;background:var(--sheet);color:var(--ink);max-width:min(520px,92vw);padding:18px 20px;font:14px/1.6 var(--sans)}
+dialog#rfDlg::backdrop{background:rgba(0,0,0,.35)}
+#rfDlg h3{margin:0 0 8px;font:700 20px/1.2 var(--cond)}
+#rfDlg input{width:100%;font:14px var(--sans);padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink);margin:6px 0 12px}
+#rfDlg .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+#rfDlg .row a{margin-right:auto;font-size:13px}
 .title .meta{display:grid;grid-template-columns:auto auto;font-size:13px}
 .title .meta div{padding:4px 12px;border-bottom:1px solid var(--line)}
 .title .meta div:nth-child(odd){color:var(--ink-2);border-right:1px solid var(--line)}
@@ -171,7 +182,11 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
 <div class="wrap">
   <header class="title">
     <h1><span data-i18n="title">SYS2 文件釋出追蹤</span>
-      <span class="lang" id="lang" role="group" aria-label="Language"><button data-l="zh">中文</button><button data-l="en">EN</button></span></h1>
+      <span class="tools">
+        <button class="rf" id="rfBtn" type="button" data-i18n="refresh">立即更新</button>
+        <span class="lang" id="lang" role="group" aria-label="Language"><button data-l="zh">中文</button><button data-l="en">EN</button></span>
+        <span id="rfMsg" role="status"></span>
+      </span></h1>
     <div class="meta" id="meta"></div>
   </header>
 
@@ -253,6 +268,17 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
     </table>
   </div>
   </section>
+  <dialog id="rfDlg">
+    <h3 data-i18n="rfTitle">從頁面直接更新</h3>
+    <div id="rfIntro"></div>
+    <input type="password" id="rfTok" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+    <div class="row">
+      <a id="rfGo" target="_blank" rel="noopener" data-i18n="rfGo">改到 GitHub 手動執行</a>
+      <button class="rf" type="button" id="rfForget" data-i18n="rfForget">清除 token</button>
+      <button class="rf" type="button" id="rfCancel" data-i18n="rfCancel">取消</button>
+      <button class="rf" type="button" id="rfSave" data-i18n="rfSave">儲存並更新</button>
+    </div>
+  </dialog>
   <footer id="foot"></footer>
 </div>
 
@@ -267,6 +293,10 @@ const md = iso => iso ? `${+iso.slice(5,7)}/${+iso.slice(8,10)}` : "";
 const blLabel = b => b.bl != null ? "BL" + (Number.isInteger(b.bl) ? b.bl : b.bl) : DATA.keyword;
 const I18N = {
   zh: {
+    refresh:"立即更新", rfQueued:"已送出，等 GitHub 開始執行…", rfRunning:"更新中，約 1 分鐘…", rfDone:"更新完成，重新載入中…",
+    rfFail:"更新沒有成功，請到 GitHub Actions 查看", rfTokenBad:"Token 無效或權限不足，請重新設定", rfTimeout:"等太久了，請稍後重新整理頁面",
+    rfTitle:"從頁面直接更新", rfGo:"改到 GitHub 手動執行", rfForget:"清除 token", rfCancel:"取消", rfSave:"儲存並更新",
+    rfIntro:`按「立即更新」會請 GitHub 馬上重抓 Jira 資料，大約 1 分鐘後頁面自動重新載入。<br><br>第一次使用需要一個 GitHub token:到 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">建立 fine-grained token</a>,Repository access 只選 <b>marzlo/SYS2</b>,Permissions 的 <b>Actions</b> 設為 Read and write,其他都不用給。<br><br>Token 只存在這台電腦的瀏覽器裡，不會放到頁面上，也不會傳給 GitHub 以外的地方。沒有 SYS2 repo 權限的人無法使用這個按鈕，請改用左下的連結或請 repo 管理者更新。`,
     tabQueue:"Polarion 處理中", queueH:"Polarion 處理中的項目", qAria:"Polarion 狀態", qTicket:"Ticket", qStory:"所屬 Story",
     qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新",
     qDaysN:n=>`${n} 天`, qOpen:j=>`在 Jira 開啟 ${j}`, qEmpty:"目前沒有項目。",
@@ -291,6 +321,10 @@ const I18N = {
     foot:p=>`判定方式：「新文件」指在所選期間內建立的 BL sub-task，或在期間內上傳到 BL sub-task 的附件。「Polarion checked」指 Story 底下任一 sub-task 轉為「${p}」狀態的時間，過去 N 週即資料時間往回 N×7 天。期間都從資料時間往回算。BL 名稱比對區分大小寫。Jira 連結需登入公司帳號才能開啟。`
   },
   en: {
+    refresh:"Refresh now", rfQueued:"Sent, waiting for GitHub to start…", rfRunning:"Updating, about 1 minute…", rfDone:"Done, reloading…",
+    rfFail:"The update did not succeed; check GitHub Actions", rfTokenBad:"The token is invalid or lacks permission; set it again", rfTimeout:"This is taking too long; reload the page later",
+    rfTitle:"Update from this page", rfGo:"Run it on GitHub instead", rfForget:"Forget token", rfCancel:"Cancel", rfSave:"Save and update",
+    rfIntro:`"Refresh now" asks GitHub to fetch the Jira data again right away; the page reloads by itself after about a minute.<br><br>The first time, you need a GitHub token: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">create a fine-grained token</a>, set Repository access to <b>marzlo/SYS2</b> only, and set the <b>Actions</b> permission to Read and write. Nothing else is needed.<br><br>The token stays in this computer's browser only. It is not put on the page and is sent nowhere except GitHub. People without access to the SYS2 repo cannot use this button; use the link at the bottom left or ask the repo owner instead.`,
     tabQueue:"In Polarion", queueH:"Items in Polarion", qAria:"Polarion status", qTicket:"Ticket", qStory:"Parent Story",
     qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated",
     qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>`Open ${j} in Jira`, qEmpty:"Nothing here right now.",
@@ -322,6 +356,7 @@ function pickLang(){
   return /^zh/i.test(navigator.language || "") ? "zh" : "en";
 }
 let LANG = pickLang();
+let rfKey = "", memToken = "";   // state of the "Refresh now" button (see below)
 const t = (k, ...a) => { const v = I18N[LANG][k]; return typeof v === "function" ? v(...a) : v; };
 
 const ALLOWED = [7,14,30,60];
@@ -576,10 +611,68 @@ function applyLang(){
   document.querySelectorAll("[data-i18n-ph]").forEach(el=>el.placeholder = t(el.dataset.i18nPh));
   document.querySelectorAll("[data-i18n-aria]").forEach(el=>el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   document.querySelectorAll("#lang button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.l===LANG));
+  $("#rfIntro").innerHTML = t("rfIntro");
+  if (rfKey) $("#rfMsg").textContent = t(rfKey);
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
   renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderAll(); renderQueue();
 }
 $("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; renderQueue(); });
+// ---- "Refresh now": run the GitHub Actions workflow through the GitHub API.
+// A static page cannot hold a secret, so each person keeps their own fine-grained
+// token (Actions: read and write on this repo only) in their browser's localStorage.
+const GH_REPO = "marzlo/SYS2", GH_WF = "refresh-dashboard.yml", TOKEN_KEY = "sys2-gh-token";
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || memToken; } catch(e) { return memToken; } };
+const setToken = v => { memToken = v; try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch(e) {} };
+const sleep = ms => new Promise(r=>setTimeout(r, ms));
+function setRf(key, busy){
+  rfKey = key;
+  $("#rfMsg").textContent = key ? t(key) : "";
+  $("#rfMsg").classList.toggle("err", ["rfFail","rfTokenBad","rfTimeout"].includes(key));
+  $("#rfBtn").disabled = !!busy;
+}
+function gh(path, opt={}){
+  return fetch(`https://api.github.com/repos/${GH_REPO}${path}`, {...opt, cache:"no-store",
+    headers:{"Accept":"application/vnd.github+json", "Authorization":`Bearer ${getToken()}`}});
+}
+function openRfDlg(){
+  $("#rfTok").value = getToken();
+  $("#rfGo").href = `https://github.com/${GH_REPO}/actions/workflows/${GH_WF}`;
+  $("#rfDlg").showModal();
+}
+async function triggerRefresh(){
+  setRf("rfQueued", true);
+  const since = Date.now() - 60000;     // margin for a clock that runs ahead
+  let r;
+  try { r = await gh(`/actions/workflows/${GH_WF}/dispatches`, {method:"POST", body:JSON.stringify({ref:"main"})}); }
+  catch(e) { setRf("rfFail"); return; }
+  if ([401,403,404].includes(r.status)) { setRf("rfTokenBad"); openRfDlg(); return; }
+  if (!r.ok) { setRf("rfFail"); return; }
+  for (let i = 0; i < 36; i++) {          // up to 6 minutes
+    await sleep(10000);
+    let run;
+    try {
+      const res = await gh(`/actions/workflows/${GH_WF}/runs?event=workflow_dispatch&per_page=5`);
+      if (!res.ok) continue;
+      run = (await res.json()).workflow_runs.find(w => new Date(w.created_at).getTime() >= since);
+    } catch(e) { continue; }
+    if (!run) continue;
+    if (run.status !== "completed") { setRf("rfRunning", true); continue; }
+    if (run.conclusion !== "success") { setRf("rfFail"); return; }
+    setRf("rfDone", true);
+    await sleep(15000);                   // give GitHub Pages a moment to publish
+    const u = new URL(location.href); u.searchParams.set("r", Date.now()); location.replace(u);
+    return;
+  }
+  setRf("rfTimeout");
+}
+$("#rfBtn").addEventListener("click", ()=>{ getToken() ? triggerRefresh() : openRfDlg(); });
+$("#rfSave").addEventListener("click", ()=>{
+  const v = $("#rfTok").value.trim(); if (!v) return;
+  setToken(v); $("#rfDlg").close(); triggerRefresh();
+});
+$("#rfCancel").addEventListener("click", ()=>$("#rfDlg").close());
+$("#rfForget").addEventListener("click", ()=>{ setToken(""); $("#rfTok").value = ""; setRf(""); });
+
 $("#lang").addEventListener("click", e=>{
   const b = e.target.closest("button"); if (!b || b.dataset.l === LANG) return;
   LANG = b.dataset.l;
