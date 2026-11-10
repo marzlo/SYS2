@@ -2,8 +2,9 @@ name: Refresh SYS2 Docs Dashboard
 
 on:
   schedule:
-    # 每天 UTC 01:00 / 06:00 / 09:00 = 台北 09:00 / 14:00 / 17:00(週一到週五)
-    - cron: '0 1,6,9 * * 1-5'
+    # 週一到週五，台北 08:23 到 19:23 每小時一次(UTC 00:23-11:23)。
+    # GitHub 的排程常延遲數小時或直接跳過，整點最嚴重，所以避開整點並加密次數。
+    - cron: '23 0-11 * * 1-5'
   workflow_dispatch: {}
   push:
     branches: [main]
