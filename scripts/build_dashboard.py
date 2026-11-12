@@ -29,6 +29,17 @@ POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786")
 QUEUE_STATUSES = ["Polarion in progress", "Polarion in review"]
 # a sub-task in any of these statuses counts as done for Polarion
 COMPLETE_STATUSES = [POLARION_STATUS] + QUEUE_STATUSES
+
+
+def has_status(name_, names):
+    """Status names get renamed in Jira (e.g. "Polarion checked" became
+    "PC (Polarion checked)"), so match by case-insensitive containment."""
+    n = (name_ or "").lower()
+    return any(x.lower() in n for x in names)
+
+
+def is_complete(name_):
+    return has_status(name_, COMPLETE_STATUSES)
 DROP_STATUSES = {"DROP", "Dropped", "Cancelled", "Canceled", "Rejected"}
 BL_RE = re.compile(r"BL\s*(\d+(?:\.\d+)?)")
 CFTS_RE = re.compile(r"CFTS[\s_]*(\d+)", re.I)
@@ -55,6 +66,9 @@ def state(status_obj):
     name_ = (status_obj or {}).get("name", "")
     if name_ in DROP_STATUSES:
         return "drop"
+    # Polarion in progress / in review: counted as done, but drawn blue on the page
+    if has_status(name_, QUEUE_STATUSES):
+        return "wip"
     if ((status_obj or {}).get("statusCategory") or {}).get("key") == "done":
         return "done"
     return "open"
@@ -70,7 +84,7 @@ def polarion_checked(issue, status_ids):
     f = issue.get("fields", {})
 
     def inside(sid, sname):
-        return sid in status_ids or sname in COMPLETE_STATUSES
+        return sid in status_ids or is_complete(sname)
 
     start = ""
     histories = sorted((issue.get("changelog") or {}).get("histories") or [],
@@ -83,7 +97,7 @@ def polarion_checked(issue, status_ids):
                 start = h.get("created") or start
     if start:
         return tpe(start)
-    if (f.get("status") or {}).get("name") in COMPLETE_STATUSES:
+    if is_complete((f.get("status") or {}).get("name")):
         return tpe(f.get("resolutiondate") or f.get("statuscategorychangedate"))
     return ""
 
@@ -114,7 +128,7 @@ def main():
     subtasks = {s["key"]: s for s in json.load(open("raw_subtasks.json", encoding="utf-8"))}
     # the status may have been renamed, so match old changelog entries by status id
     status_ids = {(t["fields"].get("status") or {}).get("id") for t in subtasks.values()
-                  if (t["fields"].get("status") or {}).get("name") in COMPLETE_STATUSES} - {None}
+                  if is_complete((t["fields"].get("status") or {}).get("name"))} - {None}
 
     out = []
     for s in stories:
