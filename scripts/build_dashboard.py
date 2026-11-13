@@ -5,7 +5,7 @@ Rules
 - A Story is shown only if it has at least one sub-task whose summary contains
   SUBTASK_KEYWORD (default "BL", case-sensitive). Other sub-tasks are ignored.
 - The BL number is read from the summary (BL1, _BL12, "BL 3", BL4.1 -> 4.1).
-- A BL counts as finished only when its status is PC (Polarion checked);
+- A BL counts as finished only when its status is PC (Polarion checked) or Released;
   DROP_STATUSES are shown greyed out and do not count either way.
 - "Polarion checked": the time a sub-task (any sub-task of the Story, BL or not)
   became done for Polarion, i.e. moved into Polarion checked, Polarion in progress
@@ -66,9 +66,9 @@ def state(status_obj):
     name_ = (status_obj or {}).get("name", "")
     if name_ in DROP_STATUSES:
         return "drop"
-    # a BL is finished only once it is PC (Polarion checked); everything else,
-    # Released included, is still open
-    if has_status(name_, [POLARION_STATUS]):
+    # a BL is finished only once it is PC (Polarion checked) or Released;
+    # everything else is still open
+    if has_status(name_, [POLARION_STATUS, "Released"]):
         return "done"
     # still in the Polarion flow; drawn like "open", kept apart for the Polarion tab
     if has_status(name_, QUEUE_STATUSES):
