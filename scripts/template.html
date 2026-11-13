@@ -117,6 +117,8 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .bl.new{box-shadow:0 0 0 2px var(--sheet),0 0 0 4px var(--amber)}
 .pill{font-size:12px;padding:1px 8px;border-radius:10px;white-space:nowrap;border:1px solid var(--line);color:var(--ink-2);background:var(--paper)}
 .pill.open,.pill.wip{color:var(--blue);border-color:var(--blue)}
+.crm{font:700 9px/1 var(--sans);margin-left:4px;padding:2px 3px;border-radius:2px;background:#C2410C;color:#fff;letter-spacing:.02em}
+.crtag{display:inline-block;font:600 12px/1 var(--sans);padding:2px 6px;margin-left:6px;border-radius:3px;border:1px solid #C2410C;color:#C2410C;white-space:nowrap}
 .pill.done{color:var(--green);border-color:var(--green)}
 
 /* table */
@@ -229,6 +231,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
     <span class="lbl">Polarion checked</span>
     <div class="types" id="pcFilter" role="group" data-i18n-aria="pcAria" aria-label="Polarion checked 期間"></div>
     <select id="sst" data-i18n-aria="sstAria" aria-label="Story 狀態"></select>
+    <div class="types" id="crFilter" role="group" data-i18n-aria="crAria" aria-label="CR"></div>
   </div>
   <div class="tbl">
     <table>
@@ -315,6 +318,7 @@ const I18N = {
     wd:["週日","週一","週二","週三","週四","週五","週六"],
     newBL:d=>`新 BL（${d} 建立）`, oldBL:"既有 BL 新增附件", belongs:"，屬於 ", owner:n=>`，負責人 ${n}`,
     moreFiles:n=>`還有 ${n} 個附件`, noFiles:"尚無附件", typeAll:"全部", typeOther:"其他", relAll:"全部 Release", sstAria:"Story 狀態", sstAll:"全部 Story 狀態",
+    crAria:"CR 篩選", crAny:"CR 不限", crHas:"含 CR 的 BL", crNone:"不含 CR",
     created:"建立 ", sep:"，", fileDate:d=>`（${d}）`,
     noRows:"沒有符合條件的 Story。清除搜尋字或放寬篩選條件即可。",
     otherChecks:"其他 sub-task 近 4 週 Polarion checked：",
@@ -343,6 +347,7 @@ const I18N = {
     wd:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
     newBL:d=>`New BL (created ${d})`, oldBL:"New attachment on an existing BL", belongs:", in ", owner:n=>`, owner ${n}`,
     moreFiles:n=>`${n} more ${n===1?"attachment":"attachments"}`, noFiles:"No attachments", typeAll:"All", typeOther:"Other", relAll:"All releases", sstAria:"Story status", sstAll:"All Story statuses",
+    crAria:"CR filter", crAny:"Any CR", crHas:"BLs with a CR", crNone:"No CR",
     created:"Created ", sep:", ", fileDate:d=>` (${d})`,
     noRows:"No Stories match. Clear the search or loosen the filters.",
     otherChecks:"Other sub-tasks Polarion checked in the last 4 weeks: ",
@@ -377,6 +382,9 @@ function decorate(){
     s.lastCreated = s.bls.reduce((m,b)=> b.created > m ? b.created : m, "");
     s.lastFile = s.bls.flatMap(b=>b.files).reduce((m,f)=> f.created > m ? f.created : m, "");
     s.openCount = s.bls.filter(b=>b.state==="open" || b.state==="wip").length;   // not yet PC
+    // change requests named in the BL title: "_CR31190_BL7", "[CR20464]", "CR03917 & CR03918"
+    for (const b of s.bls) b.crs = [...new Set([...b.summary.matchAll(/(?<![A-Za-z])CR[\s_#-]?(\d{3,})/g)].map(m=>"CR"+m[1]))];
+    s.crCount = s.bls.filter(b=>b.crs.length).length;
     s.lastCheck = s.checks.length ? s.checks[0].when : "";
     s.pcWeek = weekOf(s.lastCheck);
     s.text = [s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
@@ -466,7 +474,7 @@ function renderFeed(){
       html += `<div class="item">
         <span class="bl ${b.state}" title="${esc(b.status)}">${esc(blLabel(b))}</span>
         <div class="what">
-          <a class="k" href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}
+          <a class="k" href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}${b.crs.map(c=>`<span class="crtag">${c}</span>`).join("")}
           <div class="sub">${nb ? t("newBL", md(b.created)) : t("oldBL")}${t("belongs")}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a> ${esc(s.summary)}${b.assignee ? t("owner", esc(b.assignee)) : ""}</div>
           ${files.length ? `<ul>${files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)} <span class="sub">${md(f.created)}${f.author?` ${esc(f.author)}`:""}</span></li>`).join("")}${more>0?`<li>${t("moreFiles", more)}</li>`:""}</ul>` : `<div class="sub">${t("noFiles")}</div>`}
         </div>
@@ -491,6 +499,13 @@ function renderPcFilter(){
 }
 
 // Story status filter: every status present in the data, most common first, with counts
+let crMode = "";   // "" any, "has" a BL names a CR, "none" no BL does
+function renderCrFilter(){
+  const n = m => DATA.stories.filter(s=> m==="has" ? s.crCount>0 : s.crCount===0).length;
+  $("#crFilter").innerHTML = [["","crAny"],["has","crHas"],["none","crNone"]].map(([m,k])=>
+    `<button data-c="${m}" aria-pressed="${m===crMode}">${t(k)}${m?`<span>${n(m)}</span>`:""}</button>`).join("");
+}
+
 function renderStoryStatusOptions(){
   const keep = $("#sst").value;
   const counts = {};
@@ -515,7 +530,7 @@ function renderTable(){
   const matchQ = s => qd ? (s.doc.type.toLowerCase()===qd[1] && s.doc.no===+qd[2]) : (s.text.includes(q) || s.norm.includes(qn));
   let rows = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
     (!q || matchQ(s)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) &&
-    (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
+    (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!crMode || (crMode==="has" ? s.crCount>0 : s.crCount===0)) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
   const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
   const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck}[sort.by];
   rows.sort((a,b)=> cmp(key(a),key(b))*sort.dir || cmp(a.s.order,b.s.order));
@@ -523,7 +538,7 @@ function renderTable(){
   document.querySelectorAll("th button").forEach(b=>{ if(b.dataset.sort===sort.by) b.dataset.dir = sort.dir<0?"▼":"▲"; else delete b.dataset.dir; });
   let html = "";
   for (const {s,f} of rows){
-    const ladder = s.bls.map((b,i)=>`${i?'<span class="arrow" aria-hidden="true">›</span>':""}<span class="bl ${b.state} ${isNew(b.created)?"new":""}" title="${esc(b.key)} ${esc(b.status)}\n${esc(b.summary)}">${esc(blLabel(b))}</span>`).join("");
+    const ladder = s.bls.map((b,i)=>`${i?'<span class="arrow" aria-hidden="true">›</span>':""}<span class="bl ${b.state} ${isNew(b.created)?"new":""}" title="${esc(b.key)} ${esc(b.status)}${b.crs.length?" "+b.crs.join(" "):""}\n${esc(b.summary)}">${esc(blLabel(b))}${b.crs.length?'<span class="crm">CR</span>':""}</span>`).join("");
     html += `<tr class="row ${f.any?"has-new":""}" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${open.has(s.key)}">
       <td class="story">${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
       <td class="rel">${esc(s.release)}</td>
@@ -535,7 +550,7 @@ function renderTable(){
     if (open.has(s.key)){
       html += `<tr class="detail"><td colspan="7"><div class="det"><table><tbody>${[...s.bls].reverse().map(b=>`
         <tr><td style="width:64px"><span class="bl ${b.state} ${isNew(b.created)?"new":""}">${esc(blLabel(b))}</span></td>
-        <td><a href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}<div class="sub" style="color:var(--ink-2);font-size:13px">${t("created")}${esc(b.created.replace("T"," ").slice(0,16))}${b.assignee?`${t("sep")}${esc(b.assignee)}`:""}</div></td>
+        <td><a href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}${b.crs.map(c=>`<span class="crtag">${c}</span>`).join("")}<div class="sub" style="color:var(--ink-2);font-size:13px">${t("created")}${esc(b.created.replace("T"," ").slice(0,16))}${b.assignee?`${t("sep")}${esc(b.assignee)}`:""}</div></td>
         <td style="width:150px"><span class="pill ${b.state}">${esc(b.status)}</span>${b.checked?`<div style="font-size:12px;color:var(--ink-2);margin-top:4px">checked ${esc(day(b.checked))} ${pcBadge(b.checked, weekOf(b.checked))}</div>`:""}</td>
         <td>${b.files.length?`<ul>${b.files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)}${t("fileDate", md(f.created))}</li>`).join("")}</ul>`:`<span style="color:var(--ink-2)">${t("noFiles")}</span>`}</td></tr>`).join("")}
       </tbody></table>${otherChecks(s)}</div></td></tr>`;
@@ -614,7 +629,7 @@ function applyLang(){
   $("#rfIntro").innerHTML = t("rfIntro");
   if (rfKey) $("#rfMsg").textContent = t(rfKey);
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
-  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderAll(); renderQueue();
+  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter(); renderAll(); renderQueue();
 }
 $("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; renderQueue(); });
 // ---- "Refresh now": run the GitHub Actions workflow through the GitHub API.
@@ -685,6 +700,7 @@ $("#period").addEventListener("click", e=>{ const d=+e.target.dataset.d; if(!d) 
 window.addEventListener("hashchange", showTab);
 $("#pcFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; pcWeeks=+b.dataset.w; renderPcFilter(); renderTable(); });
 $("#types").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; docType=b.dataset.t; renderTypes(); renderTable(); });
+$("#crFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; crMode=b.dataset.c; renderCrFilter(); renderTable(); });
 ["#q","#rel","#st","#sst"].forEach(s=>$(s).addEventListener("input", renderTable));
 document.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const by=b.dataset.sort; sort = {by, dir: sort.by===by ? -sort.dir : (by==="doc"?1:-1)}; renderTable(); }));
 $("#tbody").addEventListener("click", e=>{ if(e.target.closest("a")) return; const tr=e.target.closest("tr.row"); if(!tr) return; const k=tr.dataset.k; open.has(k)?open.delete(k):open.add(k); renderTable(); });
