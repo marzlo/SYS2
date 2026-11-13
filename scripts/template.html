@@ -376,7 +376,7 @@ function decorate(){
     s.order = [TYPES.indexOf(s.doc.type), s.doc.no, s.doc.ver, s.doc.part, s.summary.toLowerCase(), +s.key.split("-").pop()];
     s.lastCreated = s.bls.reduce((m,b)=> b.created > m ? b.created : m, "");
     s.lastFile = s.bls.flatMap(b=>b.files).reduce((m,f)=> f.created > m ? f.created : m, "");
-    s.openCount = s.bls.filter(b=>b.state==="open").length;
+    s.openCount = s.bls.filter(b=>b.state==="open" || b.state==="wip").length;   // not yet PC
     s.lastCheck = s.checks.length ? s.checks[0].when : "";
     s.pcWeek = weekOf(s.lastCheck);
     s.text = [s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
@@ -412,7 +412,7 @@ function renderHeadline(){
   const all = DATA.stories.map(s=>({s, f:fresh(s)}));
   const nBL = all.reduce((n,x)=>n+x.f.bls.length,0);
   const nStory = all.filter(x=>x.f.any).length;
-  const nOpen = all.reduce((n,x)=>n+x.f.bls.filter(b=>b.state==="open").length,0);
+  const nOpen = all.reduce((n,x)=>n+x.f.bls.filter(b=>b.state==="open" || b.state==="wip").length,0);
   const nFile = all.reduce((n,x)=>n+x.f.files.length,0);
   $("#headline").innerHTML = nStory
     ? t("headline", period, nStory, nBL, nOpen, nFile, DATA.stories.length, DATA.filterStories)
