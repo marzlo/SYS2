@@ -143,6 +143,20 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .pill.qip{color:var(--blue);border-color:var(--blue);background:var(--blue-soft)}
 .pill.qrv{color:#7B5FD0;border-color:#7B5FD0}
 .overdue{color:var(--amber);font-weight:600}
+.mx{margin:0 0 18px}
+.mx table{min-width:640px}
+.mx th,.mx td{text-align:center;padding:6px 8px}
+.mx th:first-child,.mx td:first-child{text-align:left}
+.mx td.who button{all:unset;cursor:pointer;color:var(--ink);font-weight:500}
+.mx td.who button:hover{text-decoration:underline}
+.mx td.c button{font:600 14px/1 var(--sans);min-width:40px;padding:6px 4px;border:1px solid transparent;border-radius:3px;cursor:pointer;color:var(--ink);background:transparent;font-variant-numeric:tabular-nums}
+.mx td.c button:hover,.mx td.c button[aria-pressed="true"]{border-color:var(--ink)}
+.mx td.c .z{color:var(--line)}
+.mx td.tot{font-weight:700;font-variant-numeric:tabular-nums}
+.mxnote{font-size:13px;color:var(--ink-2);margin:4px 0 8px}
+.pick{display:inline-flex;gap:8px;align-items:center;font-size:14px;padding:4px 10px;border:1px solid var(--ink);border-radius:14px;background:var(--sheet)}
+.pick button{all:unset;cursor:pointer;color:var(--blue);font-weight:600}
+.qwho small{display:block;color:var(--ink-2);font-size:12px}
 .controls label{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--ink-2);cursor:pointer}
 .tbl{overflow-x:auto;background:var(--sheet);border:1px solid var(--line)}
 table{border-collapse:collapse;width:100%;min-width:900px}
@@ -255,6 +269,10 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
     <div class="types" id="qFilter" role="group" data-i18n-aria="qAria" aria-label="Polarion 狀態"></div>
     <a class="lbl" id="qSrc" target="_blank" rel="noopener"></a>
   </div>
+  <h3 style="font:700 18px/1.2 var(--cond);margin:14px 0 2px" data-i18n="qMxTitle">負責人 × 指派後天數</h3>
+  <p class="mxnote" data-i18n="qMxNote"></p>
+  <div class="tbl mx" id="qMatrix"></div>
+  <div class="controls" id="qPickRow" hidden><span class="pick" id="qPick"></span></div>
   <div class="tbl">
     <table>
       <thead><tr>
@@ -303,6 +321,9 @@ const I18N = {
     tabQueue:"Polarion 處理中", queueH:"Polarion 處理中的項目", qAria:"Polarion 狀態", qTicket:"Ticket", qStory:"所屬 Story",
     qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新",
     qDaysN:n=>`${n} 天`, qOpen:j=>`在 Jira 開啟 ${j}`, qEmpty:"目前沒有項目。",
+    qMxTitle:"負責人 × 指派後天數", qMxNote:"天數從 ticket 轉給目前負責人的那天算起(沒轉過的從建立日算)。點數字或名字，下方清單只顯示對應的 ticket。",
+    qMxOwner:"負責人", qMxTotal:"合計", qB:["0–2 天","3–7 天","8–14 天","15–30 天","30 天以上"], qNobody:"(未指派)",
+    qPickTxt:(w,b)=>`篩選：${w}${b?`，${b}`:""}`, qClear:"清除", qAssignedN:n=>`指派後 ${n} 天`,
     title:"SYS2 文件釋出追蹤", tabsAria:"頁籤", tabList:"Story 清單", tabNew:"期間內的新文件",
     periodLbl:"新文件的判定期間", periodAria:"期間", days:n=>`${n} 天`,
     feedH:"期間內的新文件", listH:"所有含 BL 的 Story", typesAria:"文件類型",
@@ -332,6 +353,9 @@ const I18N = {
     tabQueue:"In Polarion", queueH:"Items in Polarion", qAria:"Polarion status", qTicket:"Ticket", qStory:"Parent Story",
     qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated",
     qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>`Open ${j} in Jira`, qEmpty:"Nothing here right now.",
+    qMxTitle:"Assignee × days since assigned", qMxNote:"Days count from when the ticket was handed to its current assignee (from creation if it was never reassigned). Click a number or a name to show only those tickets below.",
+    qMxOwner:"Assignee", qMxTotal:"Total", qB:["0–2 d","3–7 d","8–14 d","15–30 d","30+ d"], qNobody:"(Unassigned)",
+    qPickTxt:(w,b)=>`Showing: ${w}${b?`, ${b}`:""}`, qClear:"Clear", qAssignedN:n=>`assigned ${n} ${n===1?"day":"days"} ago`,
     title:"SYS2 Document Release Tracker", tabsAria:"Tabs", tabList:"Story list", tabNew:"New documents",
     periodLbl:"Look-back period for new documents", periodAria:"Period", days:n=>`${n} days`,
     feedH:"New documents in the period", listH:"All Stories with a BL sub-task", typesAria:"Document type",
@@ -582,6 +606,30 @@ function queueStatuses(){
   return [...DATA.queueStatuses, ...extra];
 }
 function qClass(st){ const i = DATA.queueStatuses.indexOf(st); return i===0 ? "qip" : i===1 ? "qrv" : "qot"; }
+// ---- assignee x days-since-assigned matrix; a click narrows the list below
+const Q_BUCKETS = [2, 7, 14, 30, Infinity];          // upper bounds in days
+let qPick = null;                                     // {who, b} b = bucket index or -1 for all
+const qDaysAssigned = q => q.assigned ? Math.max(0, Math.floor((REF - new Date(q.assigned))/864e5)) : 0;
+const qBucket = q => Q_BUCKETS.findIndex(x => qDaysAssigned(q) <= x);
+const qWho = q => q.assignee || "";
+function renderMatrix(list){
+  const by = new Map();
+  for (const q of list){ const w = qWho(q); if (!by.has(w)) by.set(w, Array(Q_BUCKETS.length).fill(0)); by.get(w)[qBucket(q)]++; }
+  const rows = [...by.entries()].map(([w,c])=>({w, c, n:c.reduce((a,b)=>a+b,0)})).sort((a,b)=> b.n-a.n || a.w.localeCompare(b.w));
+  const max = Math.max(1, ...rows.flatMap(r=>r.c));
+  const pressed = (w,b) => qPick && qPick.who===w && qPick.b===b;
+  const cell = (w,b,v) => {
+    if (!v) return `<td class="c"><span class="z">·</span></td>`;
+    const pct = Math.round(15 + 70*v/max);
+    return `<td class="c"><button data-w="${esc(w)}" data-b="${b}" aria-pressed="${pressed(w,b)}" style="background:color-mix(in srgb, var(--blue) ${pct}%, transparent);${pct>50?"color:#fff":""}">${v}</button></td>`;
+  };
+  $("#qMatrix").innerHTML = rows.length ? `<table><thead><tr><th>${t("qMxOwner")}</th>${t("qB").map(x=>`<th>${x}</th>`).join("")}<th>${t("qMxTotal")}</th></tr></thead><tbody>${
+    rows.map(r=>`<tr><td class="who"><button data-w="${esc(r.w)}" data-b="-1">${esc(r.w || t("qNobody"))}</button></td>${r.c.map((v,b)=>cell(r.w,b,v)).join("")}<td class="tot">${r.n}</td></tr>`).join("")
+  }</tbody></table>` : "";
+  $("#qPickRow").hidden = !qPick;
+  if (qPick) $("#qPick").innerHTML = `${esc(t("qPickTxt", qPick.who || t("qNobody"), qPick.b>=0 ? t("qB")[qPick.b] : ""))} <button type="button" id="qPickClear">${t("qClear")} ✕</button>`;
+}
+
 function renderQueue(){
   const sts = queueStatuses();
   const n = st => DATA.queue.filter(q=>!st || q.status===st).length;
@@ -592,7 +640,9 @@ function renderQueue(){
   $("#qCount").textContent = DATA.queue.length;
   $("#tabQueueCount").textContent = DATA.queue.length;
   const today = DATA.generated.slice(0,10);
-  const rows = DATA.queue.filter(q=>!qStatus || q.status===qStatus)
+  const byStatus = DATA.queue.filter(q=>!qStatus || q.status===qStatus);
+  renderMatrix(byStatus);
+  const rows = byStatus.filter(q=> !qPick || (qWho(q)===qPick.who && (qPick.b<0 || qBucket(q)===qPick.b)))
     .sort((a,b)=> sts.indexOf(a.status)-sts.indexOf(b.status) || (a.since||a.updated).localeCompare(b.since||b.updated));
   $("#qBody").innerHTML = rows.map(q=>{
     const days = q.since ? Math.floor((REF - new Date(q.since))/864e5) : null;
@@ -600,7 +650,7 @@ function renderQueue(){
       <td class="story">${q.doc.label ? `<span class="doc ${q.doc.type}">${esc(q.doc.label)}</span>` : ""}<a href="${browse(q.key)}" target="_blank" rel="noopener">${esc(q.key)}</a><div>${esc(q.summary)}</div></td>
       <td class="rel">${q.parent ? `<a href="${browse(q.parent)}" target="_blank" rel="noopener">${esc(q.parent)}</a> ${esc(q.parentSummary)}` : "—"}</td>
       <td><span class="pill ${qClass(q.status)}">${esc(q.status)}</span></td>
-      <td>${esc(q.assignee) || "—"}</td>
+      <td class="qwho">${esc(q.assignee) || "—"}<small>${t("qAssignedN", qDaysAssigned(q))}</small></td>
       <td class="date">${q.since ? esc(q.since.replace("T"," ").slice(0,16)) : "—"}</td>
       <td class="date">${days==null ? "—" : t("qDaysN", days)}</td>
       <td class="date ${q.due && q.due < today ? "overdue" : ""}">${esc(q.due) || "—"}</td>
@@ -631,7 +681,15 @@ function applyLang(){
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
   renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter(); renderAll(); renderQueue();
 }
-$("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; renderQueue(); });
+$("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; qPick=null; renderQueue(); });
+$("#qMatrix").addEventListener("click", e=>{
+  const b = e.target.closest("button[data-w]"); if (!b) return;
+  const pick = {who:b.dataset.w, b:+b.dataset.b};
+  qPick = (qPick && qPick.who===pick.who && qPick.b===pick.b) ? null : pick;   // second click clears
+  renderQueue();
+  if (qPick) $("#qPickRow").scrollIntoView({behavior:"smooth", block:"start"});
+});
+$("#qPickRow").addEventListener("click", e=>{ if (e.target.id==="qPickClear"){ qPick=null; renderQueue(); } });
 // ---- "Refresh now": run the GitHub Actions workflow through the GitHub API.
 // A static page cannot hold a secret, so each person keeps their own fine-grained
 // token (Actions: read and write on this repo only) in their browser's localStorage.
