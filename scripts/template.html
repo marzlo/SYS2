@@ -139,9 +139,10 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .pc.w2{background:var(--green-soft)}
 .controls .lbl{font-size:14px;color:var(--ink-2)}
 .qs{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
-.qs.qip{background:var(--blue)} .qs.qrv{background:#7B5FD0} .qs.qot{background:var(--grey)}
+.qs.qip{background:var(--blue)} .qs.qrv{background:#7B5FD0} .qs.qpc{background:var(--green)} .qs.qot{background:var(--grey)}
 .pill.qip{color:var(--blue);border-color:var(--blue);background:var(--blue-soft)}
 .pill.qrv{color:#7B5FD0;border-color:#7B5FD0}
+.pill.qpc{color:var(--green);border-color:var(--green)}
 .overdue{color:var(--amber);font-weight:600}
 .mx{margin:0 0 18px}
 .mx table{min-width:640px}
@@ -321,7 +322,7 @@ const I18N = {
     rfIntro:`按「立即更新」會請 GitHub 馬上重抓 Jira 資料，大約 1 分鐘後頁面自動重新載入。<br><br>第一次使用需要一個 GitHub token:到 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">建立 fine-grained token</a>,Repository access 只選 <b>marzlo/SYS2</b>,Permissions 的 <b>Actions</b> 設為 Read and write,其他都不用給。<br><br>Token 只存在這台電腦的瀏覽器裡，不會放到頁面上，也不會傳給 GitHub 以外的地方。沒有 SYS2 repo 權限的人無法使用這個按鈕，請改用左下的連結或請 repo 管理者更新。`,
     tabQueue:"Polarion 處理中", queueH:"Polarion 處理中的項目", qAria:"Polarion 狀態", qTicket:"Ticket", qStory:"所屬 Story",
     qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新",
-    qDaysN:n=>`${n} 天`, qOpen:j=>`在 Jira 開啟 ${j}`, qEmpty:"目前沒有項目。",
+    qDaysN:n=>`${n} 天`, qOpen:j=>"在 Jira 開啟這份清單", qEmpty:"目前沒有項目。",
     qMxTitle:"負責人 × 指派後天數", qMxNote:"天數從 ticket 轉給目前負責人的那天算起(沒轉過的從建立日算)。點數字或名字，下方清單只顯示對應的 ticket。",
     qSearch:"搜尋 ticket、Story、負責人或文件編號",
     qMxOwner:"負責人", qMxTotal:"合計", qB:["0–2 天","3–7 天","8–14 天","15–30 天","30 天以上"], qNobody:"(未指派)",
@@ -354,7 +355,7 @@ const I18N = {
     rfIntro:`"Refresh now" asks GitHub to fetch the Jira data again right away; the page reloads by itself after about a minute.<br><br>The first time, you need a GitHub token: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">create a fine-grained token</a>, set Repository access to <b>marzlo/SYS2</b> only, and set the <b>Actions</b> permission to Read and write. Nothing else is needed.<br><br>The token stays in this computer's browser only. It is not put on the page and is sent nowhere except GitHub. People without access to the SYS2 repo cannot use this button; use the link at the bottom left or ask the repo owner instead.`,
     tabQueue:"In Polarion", queueH:"Items in Polarion", qAria:"Polarion status", qTicket:"Ticket", qStory:"Parent Story",
     qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated",
-    qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>`Open ${j} in Jira`, qEmpty:"Nothing here right now.",
+    qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>"Open this list in Jira", qEmpty:"Nothing here right now.",
     qMxTitle:"Assignee × days since assigned", qMxNote:"Days count from when the ticket was handed to its current assignee (from creation if it was never reassigned). Click a number or a name to show only those tickets below.",
     qSearch:"Search ticket, Story, assignee or document no.",
     qMxOwner:"Assignee", qMxTotal:"Total", qB:["0–2 d","3–7 d","8–14 d","15–30 d","30+ d"], qNobody:"(Unassigned)",
@@ -608,7 +609,7 @@ function queueStatuses(){
   const extra = [...new Set(DATA.queue.map(q=>q.status))].filter(x=>!DATA.queueStatuses.includes(x));
   return [...DATA.queueStatuses, ...extra];
 }
-function qClass(st){ const i = DATA.queueStatuses.indexOf(st); return i===0 ? "qip" : i===1 ? "qrv" : "qot"; }
+function qClass(st){ const i = DATA.queueStatuses.indexOf(st); return ["qip","qrv","qpc"][i] || "qot"; }
 // ---- assignee x days-since-assigned matrix; a click narrows the list below
 const Q_BUCKETS = [2, 7, 14, 30, Infinity];          // upper bounds in days
 let qPick = null;                                     // {who, b} b = bucket index or -1 for all
