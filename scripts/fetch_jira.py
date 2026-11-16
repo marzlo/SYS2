@@ -29,7 +29,9 @@ JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", "")
 JQL = os.environ.get("JIRA_JQL", "filter=11923")
 KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 # second list on its own tab: issues waiting in the Polarion statuses
-POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786")
+# filter 12786 (Polarion in progress / in review) plus every PC (Polarion checked)
+# ticket of the project; 10408 is the status id, so a rename does not break it
+POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786 OR (project = NR1LD AND status = 10408)")
 
 STORY_FIELDS = ["summary", "status", "issuetype", "assignee", "created", "updated",
                 "duedate", "parent", "subtasks"]
