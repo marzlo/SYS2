@@ -267,6 +267,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <h2><span data-i18n="queueH">Polarion 處理中的項目</span> <span class="count" id="qCount"></span></h2>
   <div class="controls">
     <div class="types" id="qFilter" role="group" data-i18n-aria="qAria" aria-label="Polarion 狀態"></div>
+    <input type="search" id="qQ" data-i18n-ph="qSearch" placeholder="搜尋 ticket、Story、負責人或文件編號">
     <a class="lbl" id="qSrc" target="_blank" rel="noopener"></a>
   </div>
   <h3 style="font:700 18px/1.2 var(--cond);margin:14px 0 2px" data-i18n="qMxTitle">負責人 × 指派後天數</h3>
@@ -322,6 +323,7 @@ const I18N = {
     qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新",
     qDaysN:n=>`${n} 天`, qOpen:j=>`在 Jira 開啟 ${j}`, qEmpty:"目前沒有項目。",
     qMxTitle:"負責人 × 指派後天數", qMxNote:"天數從 ticket 轉給目前負責人的那天算起(沒轉過的從建立日算)。點數字或名字，下方清單只顯示對應的 ticket。",
+    qSearch:"搜尋 ticket、Story、負責人或文件編號",
     qMxOwner:"負責人", qMxTotal:"合計", qB:["0–2 天","3–7 天","8–14 天","15–30 天","30 天以上"], qNobody:"(未指派)",
     qPickTxt:(w,b)=>`篩選：${w}${b?`，${b}`:""}`, qClear:"清除", qAssignedN:n=>`指派後 ${n} 天`,
     title:"SYS2 文件釋出追蹤", tabsAria:"頁籤", tabList:"Story 清單", tabNew:"期間內的新文件",
@@ -354,6 +356,7 @@ const I18N = {
     qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated",
     qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>`Open ${j} in Jira`, qEmpty:"Nothing here right now.",
     qMxTitle:"Assignee × days since assigned", qMxNote:"Days count from when the ticket was handed to its current assignee (from creation if it was never reassigned). Click a number or a name to show only those tickets below.",
+    qSearch:"Search ticket, Story, assignee or document no.",
     qMxOwner:"Assignee", qMxTotal:"Total", qB:["0–2 d","3–7 d","8–14 d","15–30 d","30+ d"], qNobody:"(Unassigned)",
     qPickTxt:(w,b)=>`Showing: ${w}${b?`, ${b}`:""}`, qClear:"Clear", qAssignedN:n=>`assigned ${n} ${n===1?"day":"days"} ago`,
     title:"SYS2 Document Release Tracker", tabsAria:"Tabs", tabList:"Story list", tabNew:"New documents",
@@ -640,7 +643,15 @@ function renderQueue(){
   $("#qCount").textContent = DATA.queue.length;
   $("#tabQueueCount").textContent = DATA.queue.length;
   const today = DATA.generated.slice(0,10);
-  const byStatus = DATA.queue.filter(q=>!qStatus || q.status===qStatus);
+  // same search rules as the Story list: separators ignored, "CFTS 4" / "VF155" match the number
+  const qs = $("#qQ").value.trim().toLowerCase(), qsn = qs.replace(/[\s_\-:.]+/g, ""), qsd = qsn.match(/^(cfts|vf)0*(\d+)$/);
+  const hit = q => {
+    if (!qs) return true;
+    if (qsd) return q.doc.type.toLowerCase()===qsd[1] && q.doc.no===+qsd[2];
+    const txt = [q.key, q.summary, q.parent, q.parentSummary, q.assignee, q.status, q.doc.label].join(" ").toLowerCase();
+    return txt.includes(qs) || txt.replace(/[\s_\-:.]+/g, "").includes(qsn);
+  };
+  const byStatus = DATA.queue.filter(q=>(!qStatus || q.status===qStatus) && hit(q));
   renderMatrix(byStatus);
   const rows = byStatus.filter(q=> !qPick || (qWho(q)===qPick.who && (qPick.b<0 || qBucket(q)===qPick.b)))
     .sort((a,b)=> sts.indexOf(a.status)-sts.indexOf(b.status) || (a.since||a.updated).localeCompare(b.since||b.updated));
@@ -656,6 +667,7 @@ function renderQueue(){
       <td class="date ${q.due && q.due < today ? "overdue" : ""}">${esc(q.due) || "—"}</td>
       <td class="date">${esc(day(q.updated))}</td></tr>`;
   }).join("") || `<tr><td colspan="8" class="empty">${t("qEmpty")}</td></tr>`;
+  $("#qCount").textContent = (qs || qPick) ? `${rows.length} / ${DATA.queue.length}` : DATA.queue.length;
 }
 
 function renderAll(){
@@ -689,6 +701,7 @@ $("#qMatrix").addEventListener("click", e=>{
   renderQueue();
   if (qPick) $("#qPickRow").scrollIntoView({behavior:"smooth", block:"start"});
 });
+$("#qQ").addEventListener("input", ()=>{ qPick=null; renderQueue(); });
 $("#qPickRow").addEventListener("click", e=>{ if (e.target.id==="qPickClear"){ qPick=null; renderQueue(); } });
 // ---- "Refresh now": run the GitHub Actions workflow through the GitHub API.
 // A static page cannot hold a secret, so each person keeps their own fine-grained
