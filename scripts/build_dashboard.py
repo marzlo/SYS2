@@ -196,6 +196,12 @@ def main():
                 for it in h.get("items") or []:
                     if it.get("field") == "status" and it.get("to") == st.get("id"):
                         since = max(since, h.get("created") or "")
+            # when the ticket was last handed to someone; never reassigned -> created
+            assigned = ""
+            for h in (q.get("changelog") or {}).get("histories") or []:
+                for it in h.get("items") or []:
+                    if it.get("field") == "assignee":
+                        assigned = max(assigned, h.get("created") or "")
             parent = f.get("parent") or {}
             psum = (parent.get("fields") or {}).get("summary") or ""
             queue.append({
@@ -208,6 +214,7 @@ def main():
                 "updated": tpe(f.get("updated")),
                 "due": f.get("duedate") or "",
                 "since": tpe(since),
+                "assigned": tpe(assigned or f.get("created")),
                 "parent": parent.get("key", ""),
                 "parentSummary": psum.replace("\t", " "),
                 "doc": doc_id(psum or f.get("summary") or ""),
