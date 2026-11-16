@@ -23,7 +23,9 @@ KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 TPE = timezone(timedelta(hours=8))
 
 POLARION_STATUS = os.environ.get("POLARION_STATUS", "Polarion checked")
-POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786")
+# filter 12786 (Polarion in progress / in review) plus every PC (Polarion checked)
+# ticket of the project; 10408 is the status id, so a rename does not break it
+POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786 OR (project = NR1LD AND status = 10408)")
 # the two tags on the Polarion tab, in this order; any other status in that filter
 # still shows up after them
 QUEUE_STATUSES = ["Polarion in progress", "Polarion in review"]
@@ -229,7 +231,7 @@ def main():
         "filterStories": len(stories),
         "stories": out,
         "queueJql": POLARION_JQL,
-        "queueStatuses": QUEUE_STATUSES,
+        "queueStatuses": QUEUE_STATUSES + ["PC (Polarion checked)"],   # tag order on the tab
         "queue": queue,
     }
     os.makedirs("site", exist_ok=True)
