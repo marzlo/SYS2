@@ -123,6 +123,34 @@ def doc_id(summary):
     return {"type": "其他", "no": 0, "ver": 0, "part": part, "label": ""}
 
 
+def adf_text(node):
+    """Plain text of a Jira comment body (Atlassian Document Format)."""
+    if isinstance(node, str):
+        return node
+    if not isinstance(node, dict):
+        return ""
+    t = node.get("type")
+    if t == "text":
+        return node.get("text", "")
+    if t == "hardBreak":
+        return "\n"
+    if t in ("mention", "emoji", "date", "status", "inlineCard"):
+        a = node.get("attrs") or {}
+        return a.get("text") or a.get("shortName") or a.get("url") or ""
+    inner = "".join(adf_text(c) for c in node.get("content") or [])
+    return inner + ("\n" if t in ("paragraph", "heading", "listItem", "codeBlock", "blockquote") else "")
+
+
+def latest_comment(fields):
+    comments = ((fields or {}).get("comment") or {}).get("comments") or []
+    if not comments:
+        return None
+    c = max(comments, key=lambda x: x.get("created") or "")
+    text = " ".join(adf_text(c.get("body")).split())     # one line, spaces squeezed
+    return {"author": name(c.get("author")), "created": tpe(c.get("created")),
+            "text": text[:600] + ("…" if len(text) > 600 else "")}
+
+
 def name(user):
     return (user or {}).get("displayName", "")
 
@@ -220,6 +248,7 @@ def main():
                 "parent": parent.get("key", ""),
                 "parentSummary": psum.replace("\t", " "),
                 "doc": doc_id(psum or f.get("summary") or ""),
+                "comment": latest_comment(f),
             })
 
     data = {
