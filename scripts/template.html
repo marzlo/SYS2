@@ -158,9 +158,12 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .pick{display:inline-flex;gap:8px;align-items:center;font-size:14px;padding:4px 10px;border:1px solid var(--ink);border-radius:14px;background:var(--sheet)}
 .pick button{all:unset;cursor:pointer;color:var(--blue);font-weight:600}
 .qwho small{display:block;color:var(--ink-2);font-size:12px}
-#tabQueue .tbl:not(.mx) table{min-width:1250px}
-td.cmt{min-width:240px;max-width:380px;font-size:13px}
-td.cmt .who{display:block;color:var(--ink-2);font-size:12px;margin-bottom:2px}
+/* the Polarion list has nine columns: give that tab a wider page so nothing is cut off */
+body.wide .wrap{max-width:1600px}
+#tabQueue .tbl:not(.mx) table{min-width:1320px}
+td.cmt{width:28%;min-width:280px;font-size:13px}
+#tabQueue td.story{min-width:190px} #tabQueue td.qwho{min-width:110px}
+td.cmt .who{display:block;color:var(--ink-2);font-size:12px;margin-bottom:2px;overflow-wrap:anywhere}
 td.cmt .txt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;cursor:pointer}
 td.cmt .txt.open{display:block;-webkit-line-clamp:unset}
 .controls label{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--ink-2);cursor:pointer}
@@ -603,6 +606,7 @@ function otherChecks(s){
 
 function showTab(){
   const tab = location.hash === "#new" ? "new" : location.hash === "#polarion" ? "queue" : "list";
+  document.body.classList.toggle("wide", tab === "queue");
   for (const [id, name] of [["New","new"],["List","list"],["Queue","queue"]]){
     $("#tab"+id).hidden = tab !== name;
     $("#tab"+id+"Link").setAttribute("aria-current", tab===name ? "page" : "false");
