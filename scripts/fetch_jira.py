@@ -44,6 +44,15 @@ _HEADERS = {"Authorization": f"Basic {_auth}", "Content-Type": "application/json
             "Accept": "application/json"}
 
 
+def _get(url):
+    req = urllib.request.Request(url, headers=_HEADERS)
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Jira API error {e.code} for {url}:\n{e.read().decode(errors='replace')}") from e
+
+
 def _post(url, body):
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=_HEADERS, method="POST")
     try:
@@ -103,8 +112,16 @@ def main():
 
     # an empty result is normal here (nothing waiting in Polarion), so no guard
     queue = search(POLARION_JQL, ["summary", "status", "issuetype", "assignee", "created",
-                                  "updated", "duedate", "parent"], expand="changelog")
+                                  "updated", "duedate", "parent", "comment"], expand="changelog")
     print(f"Polarion list '{POLARION_JQL}': {len(queue)} issues")
+    # search results may carry only part of the comments; for those issues ask for
+    # the newest one directly so the "latest comment" column is right
+    for q in queue:
+        c = (q.get("fields") or {}).get("comment") or {}
+        if c.get("total", 0) > len(c.get("comments") or []):
+            latest = _get(f"https://{JIRA_SITE}/rest/api/3/issue/{q['key']}/comment"
+                          "?orderBy=-created&maxResults=1")
+            c["comments"] = (c.get("comments") or []) + (latest.get("comments") or [])
     with open("raw_polarion.json", "w", encoding="utf-8") as f:
         json.dump(queue, f, ensure_ascii=False)
 
