@@ -32,6 +32,8 @@ KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 # filter 12786 (Polarion in progress / in review) plus every PC (Polarion checked)
 # ticket of the project; 10408 is the status id, so a rename does not break it
 POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786 OR (project = NR1LD AND status = 10408)")
+# Stories tagged "ATL-M" on the Story list (Toro / Fastback / ProMaster documents)
+ATLM_JQL = os.environ.get("ATLM_JQL", 'project = NR1LD AND (summary ~ "Toro" OR summary ~ "Fastback" OR summary ~ "Promaster" AND summary ~ "SYS2") AND type = Story')
 
 STORY_FIELDS = ["summary", "status", "issuetype", "assignee", "created", "updated",
                 "duedate", "parent", "subtasks"]
@@ -124,6 +126,11 @@ def main():
             c["comments"] = (c.get("comments") or []) + (latest.get("comments") or [])
     with open("raw_polarion.json", "w", encoding="utf-8") as f:
         json.dump(queue, f, ensure_ascii=False)
+
+    atlm = search(ATLM_JQL, ["summary"])
+    print(f"ATL-M '{ATLM_JQL}': {len(atlm)} stories")
+    with open("raw_atlm.json", "w", encoding="utf-8") as f:
+        json.dump([{"key": a["key"], "summary": a["fields"].get("summary", "")} for a in atlm], f, ensure_ascii=False)
 
 
 if __name__ == "__main__":
