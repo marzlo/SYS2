@@ -354,6 +354,7 @@ const I18N = {
     tabCheck:"狀態待確認", checkH:"狀態可能需要修正的票", ckRule:"規則", ckBlStatus:"BL 狀態", ckAll:"全部規則",
     checkNote:"依下面的規則列出 Story 和 BL 狀態對不起來的票，請到 Jira 確認後修正。規則之後可以再加。", ckEmpty:"目前沒有符合規則的票。",
     ck_dropActive:"Story 已 DROP,但 BL 不在 Polarion 狀態",
+    ck_releasedActive:"Story 已 Released,但 BL 不在 Polarion 狀態",
     tabQueue:"Polarion 處理中", queueH:"Polarion 處理中的項目", qAria:"Polarion 狀態", qTicket:"Ticket", qStory:"所屬 Story",
     qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新", qComment:"最新 comment", qCmtMore:"點文字展開 / 收合",
     qDaysN:n=>`${n} 天`, qOpen:j=>"在 Jira 開啟這份清單", qEmpty:"目前沒有項目。",
@@ -392,6 +393,7 @@ const I18N = {
     tabCheck:"Status check", checkH:"Tickets whose status may need fixing", ckRule:"Rule", ckBlStatus:"BL status", ckAll:"All rules",
     checkNote:"Tickets where the Story and BL statuses do not agree, by the rules below. Check them in Jira and fix them. More rules can be added later.", ckEmpty:"No tickets match these rules right now.",
     ck_dropActive:"Story is DROP, but a BL is not in a Polarion status",
+    ck_releasedActive:"Story is Released, but a BL is not in a Polarion status",
     tabQueue:"In Polarion", queueH:"Items in Polarion", qAria:"Polarion status", qTicket:"Ticket", qStory:"Parent Story",
     qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated", qComment:"Latest comment", qCmtMore:"Click the text to expand / collapse",
     qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>"Open this list in Jira", qEmpty:"Nothing here right now.",
@@ -653,6 +655,8 @@ const POLARION_OK = /polarion (checked|in progress|in review)/i;
 const CHECKS = [
   // Story dropped while a BL is still outside the Polarion flow (a dropped BL is fine)
   {id:"dropActive", test: s => /drop/i.test(s.status) ? s.bls.filter(b => b.state!=="drop" && !POLARION_OK.test(b.status)) : []},
+  // Story released while a BL is still outside the Polarion flow
+  {id:"releasedActive", test: s => /released/i.test(s.status) ? s.bls.filter(b => b.state!=="drop" && !POLARION_OK.test(b.status)) : []},
 ];
 let ckRule = "";
 function checkHits(){
