@@ -117,6 +117,7 @@ h2 .count{font:500 15px var(--sans);color:var(--ink-2)}
 .bl.new{box-shadow:0 0 0 2px var(--sheet),0 0 0 4px var(--amber)}
 .pill{font-size:12px;padding:1px 8px;border-radius:10px;white-space:nowrap;border:1px solid var(--line);color:var(--ink-2);background:var(--paper)}
 .pill.open,.pill.wip{color:var(--blue);border-color:var(--blue)}
+.atlm{display:inline-block;font:700 12px/1 var(--cond);padding:3px 6px;border-radius:3px;margin-right:6px;vertical-align:1px;color:#fff;background:#B45309}
 .crm{font:700 9px/1 var(--sans);margin-left:4px;padding:2px 3px;border-radius:2px;background:#C2410C;color:#fff;letter-spacing:.02em}
 .crtag{display:inline-block;font:600 12px/1 var(--sans);padding:2px 6px;margin-left:6px;border-radius:3px;border:1px solid #C2410C;color:#C2410C;white-space:nowrap}
 .pill.done{color:var(--green);border-color:var(--green)}
@@ -242,6 +243,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <h2><span data-i18n="listH">所有含 BL 的 Story</span> <span class="count" id="tblCount"></span></h2>
   <div class="controls">
     <div class="types" id="types" role="group" data-i18n-aria="typesAria" aria-label="文件類型"></div>
+    <div class="types" id="atlmFilter" role="group" data-i18n-aria="atlmAria" aria-label="ATL-M"></div>
     <input type="search" id="q" data-i18n-ph="search" placeholder="搜尋 Story、BL 名稱、檔名或 key">
     <select id="rel" aria-label="Release"></select>
     <select id="st" data-i18n-aria="stAria" aria-label="BL 狀態">
@@ -352,6 +354,8 @@ const I18N = {
     newBL:d=>`新 BL（${d} 建立）`, oldBL:"既有 BL 新增附件", belongs:"，屬於 ", owner:n=>`，負責人 ${n}`,
     moreFiles:n=>`還有 ${n} 個附件`, noFiles:"尚無附件", typeAll:"全部", typeOther:"其他", relAll:"全部 Release", sstAria:"Story 狀態", sstAll:"全部 Story 狀態",
     crAria:"CR 篩選", crAny:"CR 不限", crHas:"含 CR 的 BL", crNone:"不含 CR",
+    atlmAria:"ATL-M 篩選", atlmAny:"ATL-M 不限", atlmOnly:"ATL-M", atlmNot:"非 ATL-M",
+    atlmTip:(n,m,keys)=>`Jira 篩選共 ${n} 個 ATL-M Story;其中 ${m} 個不在這份清單(沒有 BL sub-task 或不在 filter 11923)${keys?":\n"+keys:""}`,
     created:"建立 ", sep:"，", fileDate:d=>`（${d}）`,
     noRows:"沒有符合條件的 Story。清除搜尋字或放寬篩選條件即可。",
     otherChecks:"其他 sub-task 近 4 週 Polarion checked：",
@@ -385,6 +389,8 @@ const I18N = {
     newBL:d=>`New BL (created ${d})`, oldBL:"New attachment on an existing BL", belongs:", in ", owner:n=>`, owner ${n}`,
     moreFiles:n=>`${n} more ${n===1?"attachment":"attachments"}`, noFiles:"No attachments", typeAll:"All", typeOther:"Other", relAll:"All releases", sstAria:"Story status", sstAll:"All Story statuses",
     crAria:"CR filter", crAny:"Any CR", crHas:"BLs with a CR", crNone:"No CR",
+    atlmAria:"ATL-M filter", atlmAny:"Any ATL-M", atlmOnly:"ATL-M", atlmNot:"Not ATL-M",
+    atlmTip:(n,m,keys)=>`The Jira query finds ${n} ATL-M Stories; ${m} of them are not on this list (no BL sub-task, or not in filter 11923)${keys?":\n"+keys:""}`,
     created:"Created ", sep:", ", fileDate:d=>` (${d})`,
     noRows:"No Stories match. Clear the search or loosen the filters.",
     otherChecks:"Other sub-tasks Polarion checked in the last 4 weeks: ",
@@ -422,9 +428,10 @@ function decorate(){
     // change requests named in the BL title: "_CR31190_BL7", "[CR20464]", "CR03917 & CR03918"
     for (const b of s.bls) b.crs = [...new Set([...b.summary.matchAll(/(?<![A-Za-z])CR[\s_#-]?(\d{3,})/g)].map(m=>"CR"+m[1]))];
     s.crCount = s.bls.filter(b=>b.crs.length).length;
+    s.atlm = !!s.atlm;
     s.lastCheck = s.checks.length ? s.checks[0].when : "";
     s.pcWeek = weekOf(s.lastCheck);
-    s.text = [s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
+    s.text = [s.atlm?"atl-m":"",s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
     s.norm = s.text.replace(/[\s_\-:.]+/g, "");   // "CFTS 004", "cfts_004" and "CFTS004" all match
   }
 }
@@ -536,6 +543,14 @@ function renderPcFilter(){
 }
 
 // Story status filter: every status present in the data, most common first, with counts
+let atlmMode = "";   // "" any, "only" ATL-M Stories, "not" the rest
+function renderAtlmFilter(){
+  const n = m => DATA.stories.filter(s=> m==="only" ? s.atlm : !s.atlm).length;
+  const out = DATA.atlmOutside || [];
+  const tip = t("atlmTip", DATA.atlmTotal || 0, out.length, out.slice(0,30).map(o=>`${o.key} ${o.summary}`).join("\n"));
+  $("#atlmFilter").innerHTML = [["","atlmAny"],["only","atlmOnly"],["not","atlmNot"]].map(([m,k])=>
+    `<button data-m="${m}" aria-pressed="${m===atlmMode}" ${m==="only"?`title="${esc(tip)}"`:""}>${t(k)}${m?`<span>${n(m)}</span>`:""}</button>`).join("");
+}
 let crMode = "";   // "" any, "has" a BL names a CR, "none" no BL does
 function renderCrFilter(){
   const n = m => DATA.stories.filter(s=> m==="has" ? s.crCount>0 : s.crCount===0).length;
@@ -566,7 +581,7 @@ function renderTable(){
   const qn = q.replace(/[\s_\-:.]+/g, ""), qd = qn.match(/^(cfts|vf)0*(\d+)$/);
   const matchQ = s => qd ? (s.doc.type.toLowerCase()===qd[1] && s.doc.no===+qd[2]) : (s.text.includes(q) || s.norm.includes(qn));
   let rows = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
-    (!q || matchQ(s)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) &&
+    (!q || matchQ(s)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) && (!atlmMode || (atlmMode==="only" ? s.atlm : !s.atlm)) &&
     (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!crMode || (crMode==="has" ? s.crCount>0 : s.crCount===0)) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
   const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
   const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck}[sort.by];
@@ -577,7 +592,7 @@ function renderTable(){
   for (const {s,f} of rows){
     const ladder = s.bls.map((b,i)=>`${i?'<span class="arrow" aria-hidden="true">›</span>':""}<span class="bl ${b.state} ${isNew(b.created)?"new":""}" title="${esc(b.key)} ${esc(b.status)}${b.crs.length?" "+b.crs.join(" "):""}\n${esc(b.summary)}">${esc(blLabel(b))}${b.crs.length?'<span class="crm">CR</span>':""}</span>`).join("");
     html += `<tr class="row ${f.any?"has-new":""}" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${open.has(s.key)}">
-      <td class="story">${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
+      <td class="story">${s.atlm?'<span class="atlm">ATL-M</span>':""}${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
       <td class="rel">${esc(s.release)}</td>
       <td><div class="ladder">${ladder}</div></td>
       <td class="date">${esc(day(s.lastCreated))}</td>
@@ -703,7 +718,7 @@ function applyLang(){
   $("#rfIntro").innerHTML = t("rfIntro");
   if (rfKey) $("#rfMsg").textContent = t(rfKey);
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
-  renderMeta(); renderTypes(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter(); renderAll(); renderQueue();
+  renderMeta(); renderTypes(); renderAtlmFilter(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter(); renderAll(); renderQueue();
 }
 $("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; qPick=null; renderQueue(); });
 $("#qMatrix").addEventListener("click", e=>{
@@ -783,6 +798,7 @@ $("#lang").addEventListener("click", e=>{
 $("#period").addEventListener("click", e=>{ const d=+e.target.dataset.d; if(!d) return; period=d; renderAll(); });
 window.addEventListener("hashchange", showTab);
 $("#pcFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; pcWeeks=+b.dataset.w; renderPcFilter(); renderTable(); });
+$("#atlmFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; atlmMode=b.dataset.m; renderAtlmFilter(); renderTable(); });
 $("#types").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; docType=b.dataset.t; renderTypes(); renderTable(); });
 $("#crFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; crMode=b.dataset.c; renderCrFilter(); renderTable(); });
 ["#q","#rel","#st","#sst"].forEach(s=>$(s).addEventListener("input", renderTable));
