@@ -264,11 +264,11 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
       <thead><tr>
         <th><button data-sort="doc" data-dir="▲" data-i18n="thStory">Story(依文件編號)</button></th>
         <th>Release</th>
+        <th data-i18n="thStatus">Story 狀態</th>
         <th id="thBL"></th>
         <th><button data-sort="last" data-i18n="thLast">最新 BL 建立</button></th>
         <th><button data-sort="file" data-i18n="thFile">最新附件</button></th>
         <th><button data-sort="pc" data-i18n="thPc">最近 Polarion checked</button></th>
-        <th data-i18n="thStatus">Story 狀態</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -620,11 +620,12 @@ function renderTable(){
     html += `<tr class="row ${f.any?"has-new":""}" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${open.has(s.key)}">
       <td class="story">${s.atlm?'<span class="atlm">ATL-M</span>':""}${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
       <td class="rel">${esc(s.release)}</td>
+      <td><span class="pill">${esc(s.status)}</span></td>
       <td><div class="ladder">${ladder}</div></td>
       <td class="date">${esc(day(s.lastCreated))}</td>
       <td class="date">${esc(day(s.lastFile)) || "—"}</td>
       <td class="date">${s.lastCheck ? `${esc(day(s.lastCheck))} ${pcBadge(s.lastCheck, s.pcWeek)}` : "—"}</td>
-      <td><span class="pill">${esc(s.status)}</span></td></tr>`;
+      </tr>`;
     if (open.has(s.key)){
       html += `<tr class="detail"><td colspan="7"><div class="det"><table><tbody>${[...s.bls].reverse().map(b=>`
         <tr><td style="width:64px"><span class="bl ${b.state} ${isNew(b.created)?"new":""}">${esc(blLabel(b))}</span></td>
