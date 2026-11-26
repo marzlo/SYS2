@@ -216,6 +216,13 @@ def main():
             "bls": bls,
         })
 
+    atlm = {}
+    if os.path.exists("raw_atlm.json"):
+        atlm = {a["key"]: a["summary"] for a in json.load(open("raw_atlm.json", encoding="utf-8"))}
+    shown = {o["key"] for o in out}
+    for o in out:
+        o["atlm"] = o["key"] in atlm
+
     queue = []
     if os.path.exists("raw_polarion.json"):
         for q in json.load(open("raw_polarion.json", encoding="utf-8")):
@@ -262,6 +269,9 @@ def main():
         "queueJql": POLARION_JQL,
         "queueStatuses": QUEUE_STATUSES + ["PC (Polarion checked)"],   # tag order on the tab
         "queue": queue,
+        "atlmTotal": len(atlm),
+        # ATL-M Stories that are not on the list (no BL sub-task, or not in the filter)
+        "atlmOutside": [{"key": k, "summary": v} for k, v in sorted(atlm.items()) if k not in shown],
     }
     os.makedirs("site", exist_ok=True)
     with open("site/data.json", "w", encoding="utf-8") as fh:
