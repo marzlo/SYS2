@@ -220,6 +220,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
     <a href="#list" id="tabListLink"><b data-i18n="tabList" style="font-weight:inherit">Story 清單</b><span id="tabListCount"></span></a>
     <a href="#new" id="tabNewLink"><b data-i18n="tabNew" style="font-weight:inherit">期間內的新文件</b><span id="tabNewCount"></span></a>
     <a href="#polarion" id="tabQueueLink"><b data-i18n="tabQueue" style="font-weight:inherit">Polarion 處理中</b><span id="tabQueueCount"></span></a>
+    <a href="#check" id="tabCheckLink"><b data-i18n="tabCheck" style="font-weight:inherit">狀態待確認</b><span id="tabCheckCount"></span></a>
   </nav>
 
   <section id="tabNew" hidden>
@@ -270,6 +271,25 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
         <th data-i18n="thStatus">Story 狀態</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  </section>
+
+  <section id="tabCheck" hidden>
+  <h2><span data-i18n="checkH">狀態可能需要修正的票</span> <span class="count" id="ckCount"></span></h2>
+  <p class="mxnote" data-i18n="checkNote"></p>
+  <div class="controls"><div class="types" id="ckFilter" role="group" data-i18n-aria="checkH" aria-label="規則"></div></div>
+  <div class="tbl">
+    <table>
+      <thead><tr>
+        <th data-i18n="ckRule">規則</th>
+        <th>Story</th>
+        <th data-i18n="thStatus">Story 狀態</th>
+        <th>BL</th>
+        <th data-i18n="ckBlStatus">BL 狀態</th>
+        <th data-i18n="qOwner">負責人</th>
+      </tr></thead>
+      <tbody id="ckBody"></tbody>
     </table>
   </div>
   </section>
@@ -331,6 +351,9 @@ const I18N = {
     rfFail:"更新沒有成功，請到 GitHub Actions 查看", rfTokenBad:"Token 無效或權限不足，請重新設定", rfTimeout:"等太久了，請稍後重新整理頁面",
     rfTitle:"從頁面直接更新", rfGo:"改到 GitHub 手動執行", rfForget:"清除 token", rfCancel:"取消", rfSave:"儲存並更新",
     rfIntro:`按「立即更新」會請 GitHub 馬上重抓 Jira 資料，大約 1 分鐘後頁面自動重新載入。<br><br>第一次使用需要一個 GitHub token:到 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">建立 fine-grained token</a>,Repository access 只選 <b>marzlo/SYS2</b>,Permissions 的 <b>Actions</b> 設為 Read and write,其他都不用給。<br><br>Token 只存在這台電腦的瀏覽器裡，不會放到頁面上，也不會傳給 GitHub 以外的地方。沒有 SYS2 repo 權限的人無法使用這個按鈕，請改用左下的連結或請 repo 管理者更新。`,
+    tabCheck:"狀態待確認", checkH:"狀態可能需要修正的票", ckRule:"規則", ckBlStatus:"BL 狀態", ckAll:"全部規則",
+    checkNote:"依下面的規則列出 Story 和 BL 狀態對不起來的票，請到 Jira 確認後修正。規則之後可以再加。", ckEmpty:"目前沒有符合規則的票。",
+    ck_dropActive:"Story 已 DROP,但 BL 不在 Polarion 狀態",
     tabQueue:"Polarion 處理中", queueH:"Polarion 處理中的項目", qAria:"Polarion 狀態", qTicket:"Ticket", qStory:"所屬 Story",
     qStatus:"狀態", qOwner:"負責人", qSince:"進入此狀態", qDays:"停留天數", qDue:"Due", qUpdated:"最後更新", qComment:"最新 comment", qCmtMore:"點文字展開 / 收合",
     qDaysN:n=>`${n} 天`, qOpen:j=>"在 Jira 開啟這份清單", qEmpty:"目前沒有項目。",
@@ -366,6 +389,9 @@ const I18N = {
     rfFail:"The update did not succeed; check GitHub Actions", rfTokenBad:"The token is invalid or lacks permission; set it again", rfTimeout:"This is taking too long; reload the page later",
     rfTitle:"Update from this page", rfGo:"Run it on GitHub instead", rfForget:"Forget token", rfCancel:"Cancel", rfSave:"Save and update",
     rfIntro:`"Refresh now" asks GitHub to fetch the Jira data again right away; the page reloads by itself after about a minute.<br><br>The first time, you need a GitHub token: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">create a fine-grained token</a>, set Repository access to <b>marzlo/SYS2</b> only, and set the <b>Actions</b> permission to Read and write. Nothing else is needed.<br><br>The token stays in this computer's browser only. It is not put on the page and is sent nowhere except GitHub. People without access to the SYS2 repo cannot use this button; use the link at the bottom left or ask the repo owner instead.`,
+    tabCheck:"Status check", checkH:"Tickets whose status may need fixing", ckRule:"Rule", ckBlStatus:"BL status", ckAll:"All rules",
+    checkNote:"Tickets where the Story and BL statuses do not agree, by the rules below. Check them in Jira and fix them. More rules can be added later.", ckEmpty:"No tickets match these rules right now.",
+    ck_dropActive:"Story is DROP, but a BL is not in a Polarion status",
     tabQueue:"In Polarion", queueH:"Items in Polarion", qAria:"Polarion status", qTicket:"Ticket", qStory:"Parent Story",
     qStatus:"Status", qOwner:"Assignee", qSince:"In this status since", qDays:"Days in status", qDue:"Due", qUpdated:"Last updated", qComment:"Latest comment", qCmtMore:"Click the text to expand / collapse",
     qDaysN:n=>`${n} ${n===1?"day":"days"}`, qOpen:j=>"Open this list in Jira", qEmpty:"Nothing here right now.",
@@ -619,10 +645,42 @@ function otherChecks(s){
   return `<div style="margin-top:8px;font-size:13px;color:var(--ink-2)">${t("otherChecks")}${list.map(c=>`<div><a href="${browse(c.key)}" target="_blank" rel="noopener">${esc(c.key)}</a> ${esc(c.summary)} ${esc(day(c.when))} ${pcBadge(c.when, weekOf(c.when))}</div>`).join("")}</div>`;
 }
 
+// ---- "Status check" tab: Story / BL status combinations that look wrong.
+// To add a rule: append {id, test}; test(story) returns the BLs to list, and the
+// label comes from the i18n key "ck_<id>".
+const POLARION_OK = /polarion (checked|in progress|in review)/i;
+const CHECKS = [
+  // Story dropped while a BL is still outside the Polarion flow (a dropped BL is fine)
+  {id:"dropActive", test: s => /drop/i.test(s.status) ? s.bls.filter(b => b.state!=="drop" && !POLARION_OK.test(b.status)) : []},
+];
+let ckRule = "";
+function checkHits(){
+  const hits = [];
+  for (const c of CHECKS) for (const s of DATA.stories) for (const b of c.test(s)) hits.push({c, s, b});
+  return hits;
+}
+function renderCheck(){
+  const hits = checkHits();
+  const n = id => hits.filter(h=>!id || h.c.id===id).length;
+  $("#tabCheckCount").textContent = hits.length;
+  $("#ckFilter").innerHTML = [{id:""}, ...CHECKS].map(c=>
+    `<button data-r="${c.id}" aria-pressed="${c.id===ckRule}">${c.id ? t("ck_"+c.id) : t("ckAll")}<span>${n(c.id)}</span></button>`).join("");
+  const rows = hits.filter(h=>!ckRule || h.c.id===ckRule);
+  $("#ckCount").textContent = rows.length;
+  $("#ckBody").innerHTML = rows.map(({c,s,b})=>`<tr>
+      <td style="font-size:13px">${esc(t("ck_"+c.id))}</td>
+      <td class="story">${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
+      <td><span class="pill">${esc(s.status)}</span></td>
+      <td><span class="bl ${b.state}">${esc(blLabel(b))}</span> <a href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a><div style="font-size:13px;color:var(--ink-2)">${esc(b.summary)}</div></td>
+      <td><span class="pill ${b.state}">${esc(b.status)}</span></td>
+      <td>${esc(b.assignee) || "—"}</td></tr>`).join("") || `<tr><td colspan="6" class="empty">${t("ckEmpty")}</td></tr>`;
+}
+$("#ckFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; ckRule=b.dataset.r; renderCheck(); });
+
 function showTab(){
-  const tab = location.hash === "#new" ? "new" : location.hash === "#polarion" ? "queue" : "list";
+  const tab = {"#new":"new", "#polarion":"queue", "#check":"check"}[location.hash] || "list";
   document.body.classList.toggle("wide", tab === "queue");
-  for (const [id, name] of [["New","new"],["List","list"],["Queue","queue"]]){
+  for (const [id, name] of [["New","new"],["List","list"],["Queue","queue"],["Check","check"]]){
     $("#tab"+id).hidden = tab !== name;
     $("#tab"+id+"Link").setAttribute("aria-current", tab===name ? "page" : "false");
   }
@@ -718,7 +776,7 @@ function applyLang(){
   $("#rfIntro").innerHTML = t("rfIntro");
   if (rfKey) $("#rfMsg").textContent = t(rfKey);
   $("#foot").innerHTML = t("foot", esc(DATA.polarion));
-  renderMeta(); renderTypes(); renderAtlmFilter(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter(); renderAll(); renderQueue();
+  renderMeta(); renderTypes(); renderAtlmFilter(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter(); renderAll(); renderQueue(); renderCheck();
 }
 $("#qFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; qStatus=b.dataset.s; qPick=null; renderQueue(); });
 $("#qMatrix").addEventListener("click", e=>{
