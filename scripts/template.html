@@ -652,11 +652,13 @@ function otherChecks(s){
 // To add a rule: append {id, test}; test(story) returns the BLs to list, and the
 // label comes from the i18n key "ck_<id>".
 const POLARION_OK = /polarion (checked|in progress|in review)/i;
+// a BL that is not dropped, not Released and not in a Polarion status
+const blStillOpen = b => b.state!=="drop" && !/released/i.test(b.status) && !POLARION_OK.test(b.status);
 const CHECKS = [
   // Story dropped while a BL is still outside the Polarion flow (a dropped BL is fine)
-  {id:"dropActive", test: s => /drop/i.test(s.status) ? s.bls.filter(b => b.state!=="drop" && !POLARION_OK.test(b.status)) : []},
+  {id:"dropActive", test: s => /drop/i.test(s.status) ? s.bls.filter(blStillOpen) : []},
   // Story released while a BL is still outside the Polarion flow
-  {id:"releasedActive", test: s => /released/i.test(s.status) ? s.bls.filter(b => b.state!=="drop" && !POLARION_OK.test(b.status)) : []},
+  {id:"releasedActive", test: s => /released/i.test(s.status) ? s.bls.filter(blStillOpen) : []},
 ];
 let ckRule = "";
 function checkHits(){
