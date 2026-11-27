@@ -31,6 +31,8 @@ KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 # second list on its own tab: issues waiting in the Polarion statuses
 # filter 12786 (Polarion in progress / in review) plus every PC (Polarion checked)
 # ticket of the project; 10408 is the status id, so a rename does not break it
+# second Story source: the SWPKG document-release tickets (same Jira project NR1LD)
+SWPKG_JQL = os.environ.get("SWPKG_JQL", "filter=12845")
 POLARION_JQL = os.environ.get("POLARION_JQL", "filter=12786 OR (project = NR1LD AND status = 10408)")
 # Stories tagged "ATL-M" on the Story list (Toro / Fastback / ProMaster documents)
 ATLM_JQL = os.environ.get("ATLM_JQL", 'project = NR1LD AND (summary ~ "Toro" OR summary ~ "Fastback" OR summary ~ "Promaster" AND summary ~ "SYS2") AND type = Story')
@@ -93,6 +95,23 @@ def main():
         # rather than publish an empty dashboard over the last good one.
         sys.exit(f"Filter '{JQL}' returned 0 issues. Check that the secrets belong to an "
                  "account that can open the filter.")
+
+    # tag every Story with the filter it came from; the key is the identity, so the
+    # same document number can exist in both (CFTS 004 = NR1LD-25 and NR1LD-1449)
+    for s in stories:
+        s["_project"] = "R1L-R"
+    swpkg = search(SWPKG_JQL, STORY_FIELDS)
+    print(f"SWPKG filter '{SWPKG_JQL}': {len(swpkg)} issues")
+    known = {s["key"]: s for s in stories}
+    for s in swpkg:
+        if s["key"] in known:
+            if (s["fields"].get("summary") or "").startswith("[SWPKG]"):
+                known[s["key"]]["_project"] = "SWPKG"
+        else:
+            s["_project"] = "SWPKG"
+            stories.append(s)
+    # the filters also return the BL sub-tasks themselves; keep Stories only
+    stories = [s for s in stories if not ((s["fields"].get("issuetype") or {}).get("subtask"))]
 
     parents = [s["key"] for s in stories
                if any(KEYWORD in (st.get("fields", {}).get("summary") or "")
