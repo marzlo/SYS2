@@ -22,6 +22,8 @@ JQL = os.environ.get("JIRA_JQL", "filter=11923")
 KEYWORD = os.environ.get("SUBTASK_KEYWORD", "BL")
 TPE = timezone(timedelta(hours=8))
 
+SWPKG_JQL = os.environ.get("SWPKG_JQL", "filter=12845")
+SWPKG_PREFIX = re.compile(r"^\[SWPKG\]\s*(\[[^\]]*\]\s*)?")   # "[SWPKG][CFTS_004] "
 POLARION_STATUS = os.environ.get("POLARION_STATUS", "Polarion checked")
 # filter 12786 (Polarion in progress / in review) plus every PC (Polarion checked)
 # ticket of the project; 10408 is the status id, so a rename does not break it
@@ -151,6 +153,13 @@ def latest_comment(fields):
             "text": text[:600] + ("…" if len(text) > 600 else "")}
 
 
+def project_of(story):
+    """'R1L-R' or 'SWPKG': the filter the Story came from, or an [SWPKG] summary."""
+    if (story.get("fields", {}).get("summary") or "").startswith("[SWPKG]"):
+        return "SWPKG"
+    return story.get("_project") or "R1L-R"
+
+
 def name(user):
     return (user or {}).get("displayName", "")
 
@@ -204,9 +213,12 @@ def main():
                                "summary": (stub.get("fields", {}).get("summary") or "").replace("\t", " ")})
         checks.sort(key=lambda c: c["when"], reverse=True)
         parent = (f.get("parent") or {}).get("fields", {})
+        summ = (f.get("summary") or "").replace("\t", " ")
         out.append({
             "key": s["key"],
-            "summary": (f.get("summary") or "").replace("\t", " "),
+            "project": project_of(s),
+            "summary": summ,
+            "title": SWPKG_PREFIX.sub("", summ) or summ,     # shown without the [SWPKG][doc] prefix
             "status": (f.get("status") or {}).get("name", ""),
             "assignee": name(f.get("assignee")),
             "release": parent.get("summary", "(no parent)"),
@@ -223,6 +235,7 @@ def main():
     for o in out:
         o["atlm"] = o["key"] in atlm
 
+    proj_of_key = {s["key"]: project_of(s) for s in stories}
     queue = []
     if os.path.exists("raw_polarion.json"):
         for q in json.load(open("raw_polarion.json", encoding="utf-8")):
@@ -254,6 +267,8 @@ def main():
                 "assigned": tpe(assigned or f.get("created")),
                 "parent": parent.get("key", ""),
                 "parentSummary": psum.replace("\t", " "),
+                "project": proj_of_key.get(parent.get("key", "")) or
+                           ("SWPKG" if (psum or f.get("summary") or "").startswith("[SWPKG]") else "R1L-R"),
                 "doc": doc_id(psum or f.get("summary") or ""),
                 "comment": latest_comment(f),
             })
@@ -262,6 +277,8 @@ def main():
         "generated": datetime.now(TPE).isoformat(timespec="minutes"),
         "site": JIRA_SITE,
         "jql": JQL,
+        "swpkgJql": SWPKG_JQL,
+        "filterByProject": {p: sum(1 for s in stories if project_of(s) == p) for p in ("R1L-R", "SWPKG")},
         "keyword": KEYWORD,
         "polarion": " / ".join(COMPLETE_STATUSES),
         "filterStories": len(stories),
