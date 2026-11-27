@@ -264,7 +264,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
       <thead><tr>
         <th><button data-sort="doc" data-dir="▲" data-i18n="thStory">Story(依文件編號)</button></th>
         <th>Release</th>
-        <th data-i18n="thStatus">Story 狀態</th>
+        <th><button data-sort="st" data-i18n="thStatus">Story 狀態</button></th>
         <th id="thBL"></th>
         <th><button data-sort="last" data-i18n="thLast">最新 BL 建立</button></th>
         <th><button data-sort="file" data-i18n="thFile">最新附件</button></th>
@@ -612,7 +612,7 @@ function renderTable(){
     (!q || matchQ(s)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) && (!atlmMode || (atlmMode==="only" ? s.atlm : !s.atlm)) &&
     (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!crMode || (crMode==="has" ? s.crCount>0 : s.crCount===0)) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
   const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
-  const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck}[sort.by];
+  const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck, st:x=>x.s.status.toLowerCase()}[sort.by];
   rows.sort((a,b)=> cmp(key(a),key(b))*sort.dir || cmp(a.s.order,b.s.order));
   $("#tblCount").textContent = `${rows.length} / ${DATA.stories.length}`;
   document.querySelectorAll("th button").forEach(b=>{ if(b.dataset.sort===sort.by) b.dataset.dir = sort.dir<0?"▼":"▲"; else delete b.dataset.dir; });
@@ -867,7 +867,7 @@ $("#atlmFilter").addEventListener("click", e=>{ const b=e.target.closest("button
 $("#types").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; docType=b.dataset.t; renderTypes(); renderTable(); });
 $("#crFilter").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; crMode=b.dataset.c; renderCrFilter(); renderTable(); });
 ["#q","#rel","#st","#sst"].forEach(s=>$(s).addEventListener("input", renderTable));
-document.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const by=b.dataset.sort; sort = {by, dir: sort.by===by ? -sort.dir : (by==="doc"?1:-1)}; renderTable(); }));
+document.querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{ const by=b.dataset.sort; sort = {by, dir: sort.by===by ? -sort.dir : (by==="doc"||by==="st"?1:-1)}; renderTable(); }));
 $("#tbody").addEventListener("click", e=>{ if(e.target.closest("a")) return; const tr=e.target.closest("tr.row"); if(!tr) return; const k=tr.dataset.k; open.has(k)?open.delete(k):open.add(k); renderTable(); });
 $("#tbody").addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }});
 </script>
