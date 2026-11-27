@@ -177,6 +177,12 @@ th button[data-dir]::after{content:attr(data-dir);margin-left:4px}
 tr.row{cursor:pointer}
 tr.row:hover td{background:var(--paper)}
 tr.row.has-new td:first-child{box-shadow:inset 4px 0 0 var(--amber)}
+/* SWPKG rows: purple bar at the very left, the amber "new" bar moves next to it */
+tr.row.sw td:first-child{box-shadow:inset 4px 0 0 #7C3AED}
+tr.row.sw.has-new td:first-child{box-shadow:inset 4px 0 0 #7C3AED, inset 8px 0 0 var(--amber)}
+.swpkg{display:inline-block;font:700 12px/1 var(--cond);padding:3px 6px;border-radius:3px;margin-right:6px;vertical-align:1px;color:#fff;background:#7C3AED}
+.types.projSel button[aria-pressed="true"]{background:#4C1D95;color:#fff}
+#meta a{display:block}
 td.story a{font-weight:600}
 td.story div{overflow-wrap:anywhere}
 td.rel{font-size:13px;color:var(--ink-2);max-width:220px}
@@ -224,6 +230,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   </nav>
 
   <section id="tabNew" hidden>
+  <div class="controls"><div class="types projSel" role="group" data-i18n-aria="projAria" aria-label="專案"></div></div>
   <div class="period">
     <span data-i18n="periodLbl">新文件的判定期間</span>
     <div class="seg" id="period" role="group" data-i18n-aria="periodAria" aria-label="期間">
@@ -243,6 +250,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <section id="tabList">
   <h2><span data-i18n="listH">所有含 BL 的 Story</span> <span class="count" id="tblCount"></span></h2>
   <div class="controls">
+    <div class="types projSel" role="group" data-i18n-aria="projAria" aria-label="專案"></div>
     <div class="types" id="types" role="group" data-i18n-aria="typesAria" aria-label="文件類型"></div>
     <div class="types" id="atlmFilter" role="group" data-i18n-aria="atlmAria" aria-label="ATL-M"></div>
     <input type="search" id="q" data-i18n-ph="search" placeholder="搜尋 Story、BL 名稱、檔名或 key">
@@ -278,7 +286,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <section id="tabCheck" hidden>
   <h2><span data-i18n="checkH">狀態可能需要修正的票</span> <span class="count" id="ckCount"></span></h2>
   <p class="mxnote" data-i18n="checkNote"></p>
-  <div class="controls"><div class="types" id="ckFilter" role="group" data-i18n-aria="checkH" aria-label="規則"></div></div>
+  <div class="controls"><div class="types projSel" role="group" data-i18n-aria="projAria" aria-label="專案"></div><div class="types" id="ckFilter" role="group" data-i18n-aria="checkH" aria-label="規則"></div></div>
   <div class="tbl">
     <table>
       <thead><tr>
@@ -297,6 +305,7 @@ footer{margin-top:36px;color:var(--ink-2);font-size:13px}
   <section id="tabQueue" hidden>
   <h2><span data-i18n="queueH">Polarion 處理中的項目</span> <span class="count" id="qCount"></span></h2>
   <div class="controls">
+    <div class="types projSel" role="group" data-i18n-aria="projAria" aria-label="專案"></div>
     <div class="types" id="qFilter" role="group" data-i18n-aria="qAria" aria-label="Polarion 狀態"></div>
     <input type="search" id="qQ" data-i18n-ph="qSearch" placeholder="搜尋 ticket、Story、負責人或文件編號">
     <a class="lbl" id="qSrc" target="_blank" rel="noopener"></a>
@@ -347,6 +356,7 @@ const md = iso => iso ? `${+iso.slice(5,7)}/${+iso.slice(8,10)}` : "";
 const blLabel = b => b.bl != null ? "BL" + (Number.isInteger(b.bl) ? b.bl : b.bl) : DATA.keyword;
 const I18N = {
   zh: {
+    projAria:"專案", projAll:"全部", swEmpty:"SWPKG 目前沒有 Released 的 BL,可將 BL 狀態 / Story 狀態改為全部。",
     refresh:"立即更新", rfQueued:"已送出，等 GitHub 開始執行…", rfRunning:"更新中，約 1 分鐘…", rfDone:"更新完成，重新載入中…",
     rfFail:"更新沒有成功，請到 GitHub Actions 查看", rfTokenBad:"Token 無效或權限不足，請重新設定", rfTimeout:"等太久了，請稍後重新整理頁面",
     rfTitle:"從頁面直接更新", rfGo:"改到 GitHub 手動執行", rfForget:"清除 token", rfCancel:"取消", rfSave:"儲存並更新",
@@ -386,6 +396,7 @@ const I18N = {
     foot:p=>`判定方式：「新文件」指在所選期間內建立的 BL sub-task，或在期間內上傳到 BL sub-task 的附件。「Polarion checked」指 Story 底下任一 sub-task 轉為「${p}」狀態的時間，過去 N 週即資料時間往回 N×7 天。期間都從資料時間往回算。BL 名稱比對區分大小寫。Jira 連結需登入公司帳號才能開啟。`
   },
   en: {
+    projAria:"Project", projAll:"All", swEmpty:"SWPKG has no Released BL yet; set the BL status / Story status filter back to all.",
     refresh:"Refresh now", rfQueued:"Sent, waiting for GitHub to start…", rfRunning:"Updating, about 1 minute…", rfDone:"Done, reloading…",
     rfFail:"The update did not succeed; check GitHub Actions", rfTokenBad:"The token is invalid or lacks permission; set it again", rfTimeout:"This is taking too long; reload the page later",
     rfTitle:"Update from this page", rfGo:"Run it on GitHub instead", rfForget:"Forget token", rfCancel:"Cancel", rfSave:"Save and update",
@@ -459,7 +470,8 @@ function decorate(){
     s.atlm = !!s.atlm;
     s.lastCheck = s.checks.length ? s.checks[0].when : "";
     s.pcWeek = weekOf(s.lastCheck);
-    s.text = [s.atlm?"atl-m":"",s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
+    s.project = s.project || "R1L-R";
+    s.text = [s.project, s.atlm?"atl-m":"",s.key,s.summary,s.release,s.assignee,...s.bls.flatMap(b=>[b.key,b.summary,b.assignee,...b.files.map(f=>f.name)])].join(" ").toLowerCase();
     s.norm = s.text.replace(/[\s_\-:.]+/g, "");   // "CFTS 004", "cfts_004" and "CFTS004" all match
   }
 }
@@ -474,6 +486,27 @@ function pcBadge(iso, w){
   return w ? `<span class="pc w${w}" title="${esc(iso.replace("T"," ").slice(0,16))}">${w===1?t("pcW1"):t("pcWn",w)}</span>` : "";
 }
 
+// ---- project switch (R1L-R / SWPKG / all), shared by every tab
+const PROJECTS = ["R1L-R", "SWPKG"];
+let proj = "R1L-R";
+const inProj = x => !proj || x.project === proj;
+const PS = () => DATA.stories.filter(inProj);
+const projCounts = list => { const c = {"":list.length}; for (const p of PROJECTS) c[p] = list.filter(x=>x.project===p).length; return c; };
+// each tab has its own copy of the switch; tab = the section it sits in, counts per tab
+function renderProjSel(tabId, counts){
+  const el = document.querySelector(`#${tabId} .projSel`); if (!el) return;
+  el.innerHTML = [...PROJECTS, ""].map(p=>
+    `<button data-p="${p}" aria-pressed="${p===proj}">${p || t("projAll")}<span>${counts[p] ?? 0}</span></button>`).join("");
+}
+function renderProjectViews(){
+  renderTypes(); renderAtlmFilter(); renderPcFilter(); renderRelOptions(); renderStoryStatusOptions(); renderCrFilter();
+  renderAll(); renderQueue(); renderCheck();
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".projSel button"); if (!b) return;
+  proj = b.dataset.p; open.clear(); qPick = null; renderProjectViews();
+});
+
 function fresh(s){
   const bls = s.bls.filter(b=>isNew(b.created));
   const files = s.bls.flatMap(b=>b.files.filter(f=>isNew(f.created)));
@@ -483,19 +516,19 @@ function fresh(s){
 function renderMeta(){
   const g = new Date(DATA.generated);
   $("#meta").innerHTML = `
-    <div>${t("metaSrc")}</div><div><a href="https://${esc(DATA.site)}/issues/?jql=${encodeURIComponent(DATA.jql)}" target="_blank" rel="noopener">${esc(DATA.jql)}</a></div>
+    <div>${t("metaSrc")}</div><div><a href="https://${esc(DATA.site)}/issues/?jql=${encodeURIComponent(DATA.jql)}" target="_blank" rel="noopener">${esc(DATA.jql)}(R1L-R)</a><a href="https://${esc(DATA.site)}/issues/?jql=${encodeURIComponent(DATA.swpkgJql||"filter=12845")}" target="_blank" rel="noopener">${esc(DATA.swpkgJql||"filter=12845")}(SWPKG)</a></div>
     <div>${t("metaCond")}</div><div>${t("cond", esc(DATA.keyword))}</div>
     <div>${t("metaTime")}</div><div>${esc(DATA.generated.replace("T"," ").slice(0,16))}${t("tz")}</div>`;
 }
 
 function renderHeadline(){
-  const all = DATA.stories.map(s=>({s, f:fresh(s)}));
+  const all = PS().map(s=>({s, f:fresh(s)}));
   const nBL = all.reduce((n,x)=>n+x.f.bls.length,0);
   const nStory = all.filter(x=>x.f.any).length;
   const nOpen = all.reduce((n,x)=>n+x.f.bls.filter(b=>b.state==="open" || b.state==="wip").length,0);
   const nFile = all.reduce((n,x)=>n+x.f.files.length,0);
   $("#headline").innerHTML = nStory
-    ? t("headline", period, nStory, nBL, nOpen, nFile, DATA.stories.length, DATA.filterStories)
+    ? t("headline", period, nStory, nBL, nOpen, nFile, PS().length, proj ? ((DATA.filterByProject||{})[proj] ?? DATA.filterStories) : DATA.filterStories)
     : t("headlineNone", period);
 }
 
@@ -503,7 +536,7 @@ function renderSpark(){
   const weeks = 12, W = 316, H = 80, bw = W/weeks;
   const counts = Array(weeks).fill(0);
   const end = REF.getTime();
-  for (const s of DATA.stories) for (const b of s.bls){
+  for (const s of PS()) for (const b of s.bls){
     const age = Math.floor((end - new Date(b.created).getTime())/(7*864e5));
     if (age>=0 && age<weeks) counts[weeks-1-age]++;
   }
@@ -521,13 +554,15 @@ function renderSpark(){
 
 function renderFeed(){
   // one entry per BL sub-task that is new itself or got new files in the period
-  const entries = [];
+  const entries = [], every = [];
   for (const s of DATA.stories) for (const b of s.bls){
     const nb = isNew(b.created), nf = b.files.filter(f=>isNew(f.created));
     if (!nb && !nf.length) continue;
     const when = [nb ? b.created : "", ...nf.map(f=>f.created)].sort().pop();
-    entries.push({s,b,nb,nf,when});
+    every.push(s);
+    if (inProj(s)) entries.push({s,b,nb,nf,when});
   }
+  renderProjSel("tabNew", projCounts(every));
   entries.sort((a,b)=> a.when < b.when ? 1 : -1);
   $("#feedCount").textContent = entries.length ? t("feedCount", entries.length) : "";
   if (!entries.length){ $("#feed").innerHTML = `<div class="empty">${t("feedEmpty")}</div>`; return; }
@@ -547,7 +582,7 @@ function renderFeed(){
         <span class="bl ${b.state}" title="${esc(b.status)}">${esc(blLabel(b))}</span>
         <div class="what">
           <a class="k" href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a> ${esc(b.summary)}${b.crs.map(c=>`<span class="crtag">${c}</span>`).join("")}
-          <div class="sub">${nb ? t("newBL", md(b.created)) : t("oldBL")}${t("belongs")}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a> ${esc(s.summary)}${b.assignee ? t("owner", esc(b.assignee)) : ""}</div>
+          <div class="sub">${nb ? t("newBL", md(b.created)) : t("oldBL")}${t("belongs")}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a> ${esc(s.title||s.summary)}${b.assignee ? t("owner", esc(b.assignee)) : ""}</div>
           ${files.length ? `<ul>${files.map(f=>`<li class="${isNew(f.created)?"fresh":""}">${esc(f.name)} <span class="sub">${md(f.created)}${f.author?` ${esc(f.author)}`:""}</span></li>`).join("")}${more>0?`<li>${t("moreFiles", more)}</li>`:""}</ul>` : `<div class="sub">${t("noFiles")}</div>`}
         </div>
         <span class="pill ${b.state}">${esc(b.status)}</span>
@@ -559,13 +594,13 @@ function renderFeed(){
 }
 
 function renderTypes(){
-  const n = ty => DATA.stories.filter(s=>!ty || s.doc.type===ty).length;
+  const n = ty => PS().filter(s=>!ty || s.doc.type===ty).length;
   $("#types").innerHTML = ["",...TYPES].filter(ty=>!ty || n(ty)).map(ty=>
     `<button data-t="${ty}" aria-pressed="${ty===docType}">${!ty ? t("typeAll") : ty==="其他" ? t("typeOther") : ty}<span>${n(ty)}</span></button>`).join("");
 }
 
 function renderPcFilter(){
-  const n = w => DATA.stories.filter(s=>s.pcWeek && s.pcWeek<=w).length;
+  const n = w => PS().filter(s=>s.pcWeek && s.pcWeek<=w).length;
   $("#pcFilter").innerHTML = [0,1,2,3,4].map(w=>
     `<button data-w="${w}" aria-pressed="${w===pcWeeks}">${w? `${t("pcPast", w)}<span>${n(w)}</span>` : t("pcAny")}</button>`).join("");
 }
@@ -573,7 +608,7 @@ function renderPcFilter(){
 // Story status filter: every status present in the data, most common first, with counts
 let atlmMode = "";   // "" any, "only" ATL-M Stories, "not" the rest
 function renderAtlmFilter(){
-  const n = m => DATA.stories.filter(s=> m==="only" ? s.atlm : !s.atlm).length;
+  const n = m => PS().filter(s=> m==="only" ? s.atlm : !s.atlm).length;
   const out = DATA.atlmOutside || [];
   const tip = t("atlmTip", DATA.atlmTotal || 0, out.length, out.slice(0,30).map(o=>`${o.key} ${o.summary}`).join("\n"));
   $("#atlmFilter").innerHTML = [["","atlmAny"],["only","atlmOnly"],["not","atlmNot"]].map(([m,k])=>
@@ -581,7 +616,7 @@ function renderAtlmFilter(){
 }
 let crMode = "";   // "" any, "has" a BL names a CR, "none" no BL does
 function renderCrFilter(){
-  const n = m => DATA.stories.filter(s=> m==="has" ? s.crCount>0 : s.crCount===0).length;
+  const n = m => PS().filter(s=> m==="has" ? s.crCount>0 : s.crCount===0).length;
   $("#crFilter").innerHTML = [["","crAny"],["has","crHas"],["none","crNone"]].map(([m,k])=>
     `<button data-c="${m}" aria-pressed="${m===crMode}">${t(k)}${m?`<span>${n(m)}</span>`:""}</button>`).join("");
 }
@@ -589,14 +624,14 @@ function renderCrFilter(){
 function renderStoryStatusOptions(){
   const keep = $("#sst").value;
   const counts = {};
-  for (const s of DATA.stories) counts[s.status] = (counts[s.status]||0) + 1;
+  for (const s of PS()) counts[s.status] = (counts[s.status]||0) + 1;
   const list = Object.keys(counts).sort((a,b)=> counts[b]-counts[a] || a.localeCompare(b));
   $("#sst").innerHTML = `<option value="">${t("sstAll")}</option>` + list.map(x=>`<option value="${esc(x)}">${esc(x)} (${counts[x]})</option>`).join("");
   $("#sst").value = keep;
 }
 
 function renderRelOptions(){
-  const rels = [...new Set(DATA.stories.map(s=>s.release))].sort();
+  const rels = [...new Set(PS().map(s=>s.release))].sort();
   const keep = $("#rel").value;
   $("#rel").innerHTML = `<option value="">${t("relAll")}</option>` + rels.map(r=>`<option>${esc(r)}</option>`).join("");
   $("#rel").value = keep;
@@ -608,19 +643,21 @@ function renderTable(){
   // text search that ignores spaces, underscores, dashes, colons and dots
   const qn = q.replace(/[\s_\-:.]+/g, ""), qd = qn.match(/^(cfts|vf)0*(\d+)$/);
   const matchQ = s => qd ? (s.doc.type.toLowerCase()===qd[1] && s.doc.no===+qd[2]) : (s.text.includes(q) || s.norm.includes(qn));
-  let rows = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
+  const others = DATA.stories.map(s=>({s, f:fresh(s)})).filter(({s,f})=>
     (!q || matchQ(s)) && (!rel || s.release===rel) && (!docType || s.doc.type===docType) && (!atlmMode || (atlmMode==="only" ? s.atlm : !s.atlm)) &&
     (!st || (st==="open" ? s.openCount>0 : s.openCount===0)) && (!sst || s.status===sst) && (!crMode || (crMode==="has" ? s.crCount>0 : s.crCount===0)) && (!pcWeeks || (s.pcWeek && s.pcWeek<=pcWeeks)));
+  renderProjSel("tabList", projCounts(others.map(x=>x.s)));     // counts follow the other filters
+  let rows = others.filter(x=>inProj(x.s));
   const cmp = (A,B) => { if (Array.isArray(A)) { for (let i=0;i<A.length;i++){ const c=cmp(A[i],B[i]); if(c) return c; } return 0; } return A<B?-1:A>B?1:0; };
   const key = {doc:x=>x.s.order, last:x=>x.s.lastCreated, file:x=>x.s.lastFile, pc:x=>x.s.lastCheck, st:x=>x.s.status.toLowerCase()}[sort.by];
   rows.sort((a,b)=> cmp(key(a),key(b))*sort.dir || cmp(a.s.order,b.s.order));
-  $("#tblCount").textContent = `${rows.length} / ${DATA.stories.length}`;
+  $("#tblCount").textContent = `${rows.length} / ${PS().length}`;
   document.querySelectorAll("th button").forEach(b=>{ if(b.dataset.sort===sort.by) b.dataset.dir = sort.dir<0?"▼":"▲"; else delete b.dataset.dir; });
   let html = "";
   for (const {s,f} of rows){
     const ladder = s.bls.map((b,i)=>`${i?'<span class="arrow" aria-hidden="true">›</span>':""}<span class="bl ${b.state} ${isNew(b.created)?"new":""}" title="${esc(b.key)} ${esc(b.status)}${b.crs.length?" "+b.crs.join(" "):""}\n${esc(b.summary)}">${esc(blLabel(b))}${b.crs.length?'<span class="crm">CR</span>':""}</span>`).join("");
-    html += `<tr class="row ${f.any?"has-new":""}" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${open.has(s.key)}">
-      <td class="story">${s.atlm?'<span class="atlm">ATL-M</span>':""}${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
+    html += `<tr class="row ${f.any?"has-new":""} ${s.project==="SWPKG"?"sw":""}" data-k="${esc(s.key)}" tabindex="0" aria-expanded="${open.has(s.key)}">
+      <td class="story">${s.project==="SWPKG"?'<span class="swpkg">SWPKG</span>':""}${s.atlm?'<span class="atlm">ATL-M</span>':""}${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.title||s.summary)}</div></td>
       <td class="rel">${esc(s.release)}</td>
       <td><span class="pill">${esc(s.status)}</span></td>
       <td><div class="ladder">${ladder}</div></td>
@@ -637,7 +674,9 @@ function renderTable(){
       </tbody></table>${otherChecks(s)}</div></td></tr>`;
     }
   }
-  $("#tbody").innerHTML = html || `<tr><td colspan="7" class="empty">${t("noRows")}</td></tr>`;
+  // SWPKG Stories are all new: a "finished" / "Released" filter there gives nothing
+  const swHint = proj==="SWPKG" && (st==="done" || /released/i.test(sst));
+  $("#tbody").innerHTML = html || `<tr><td colspan="7" class="empty">${t(swHint ? "swEmpty" : "noRows")}</td></tr>`;
 }
 
 // non-BL sub-tasks checked in the last 4 weeks (BL ones are shown in the table above)
@@ -664,10 +703,12 @@ let ckRule = "";
 function checkHits(){
   const hits = [];
   for (const c of CHECKS) for (const s of DATA.stories) for (const b of c.test(s)) hits.push({c, s, b});
-  return hits;
+  return hits;     // all projects; renderCheck narrows to the selected one
 }
 function renderCheck(){
-  const hits = checkHits();
+  const everyHit = checkHits();
+  renderProjSel("tabCheck", projCounts(everyHit.map(h=>h.s)));
+  const hits = everyHit.filter(h=>inProj(h.s));
   const n = id => hits.filter(h=>!id || h.c.id===id).length;
   $("#tabCheckCount").textContent = hits.length;
   $("#ckFilter").innerHTML = [{id:""}, ...CHECKS].map(c=>
@@ -676,7 +717,7 @@ function renderCheck(){
   $("#ckCount").textContent = rows.length;
   $("#ckBody").innerHTML = rows.map(({c,s,b})=>`<tr>
       <td style="font-size:13px">${esc(t("ck_"+c.id))}</td>
-      <td class="story">${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.summary)}</div></td>
+      <td class="story">${s.project==="SWPKG"?'<span class="swpkg">SWPKG</span>':""}${s.doc.label?`<span class="doc ${s.doc.type}">${esc(s.doc.label)}</span>`:""}<a href="${browse(s.key)}" target="_blank" rel="noopener">${esc(s.key)}</a><div>${esc(s.title||s.summary)}</div></td>
       <td><span class="pill">${esc(s.status)}</span></td>
       <td><span class="bl ${b.state}">${esc(blLabel(b))}</span> <a href="${browse(b.key)}" target="_blank" rel="noopener">${esc(b.key)}</a><div style="font-size:13px;color:var(--ink-2)">${esc(b.summary)}</div></td>
       <td><span class="pill ${b.state}">${esc(b.status)}</span></td>
@@ -726,13 +767,14 @@ function renderMatrix(list){
 
 function renderQueue(){
   const sts = queueStatuses();
-  const n = st => DATA.queue.filter(q=>!st || q.status===st).length;
+  const PQ = DATA.queue.filter(inProj);
+  const n = st => PQ.filter(q=>!st || q.status===st).length;
   $("#qFilter").innerHTML = ["",...sts].map(st=>
     `<button data-s="${esc(st)}" aria-pressed="${st===qStatus}">${st ? `<i class="qs ${qClass(st)}"></i>${esc(st)}` : t("typeAll")}<span>${n(st)}</span></button>`).join("");
   $("#qSrc").href = `https://${DATA.site}/issues/?jql=${encodeURIComponent(DATA.queueJql)}`;
   $("#qSrc").textContent = t("qOpen", DATA.queueJql);
-  $("#qCount").textContent = DATA.queue.length;
-  $("#tabQueueCount").textContent = DATA.queue.length;
+  $("#qCount").textContent = PQ.length;
+  $("#tabQueueCount").textContent = PQ.length;
   const today = DATA.generated.slice(0,10);
   // same search rules as the Story list: separators ignored, "CFTS 4" / "VF155" match the number
   const qs = $("#qQ").value.trim().toLowerCase(), qsn = qs.replace(/[\s_\-:.]+/g, ""), qsd = qsn.match(/^(cfts|vf)0*(\d+)$/);
@@ -742,7 +784,9 @@ function renderQueue(){
     const txt = [q.key, q.summary, q.parent, q.parentSummary, q.assignee, q.status, q.doc.label, q.comment && q.comment.text, q.comment && q.comment.author].join(" ").toLowerCase();
     return txt.includes(qs) || txt.replace(/[\s_\-:.]+/g, "").includes(qsn);
   };
-  const byStatus = DATA.queue.filter(q=>(!qStatus || q.status===qStatus) && hit(q));
+  const qAll = DATA.queue.filter(q=>(!qStatus || q.status===qStatus) && hit(q));
+  renderProjSel("tabQueue", projCounts(qAll));
+  const byStatus = qAll.filter(inProj);
   renderMatrix(byStatus);
   const rows = byStatus.filter(q=> !qPick || (qWho(q)===qPick.who && (qPick.b<0 || qBucket(q)===qPick.b)))
     .sort((a,b)=> sts.indexOf(a.status)-sts.indexOf(b.status) || (a.since||a.updated).localeCompare(b.since||b.updated));
@@ -759,7 +803,7 @@ function renderQueue(){
       <td class="date">${esc(day(q.updated))}</td>
       <td class="cmt">${q.comment ? `<span class="who">${esc(q.comment.author)}${t("sep")}${esc(q.comment.created.replace("T"," ").slice(0,16))}</span><span class="txt" title="${esc(t("qCmtMore"))}">${esc(q.comment.text)}</span>` : "—"}</td></tr>`;
   }).join("") || `<tr><td colspan="9" class="empty">${t("qEmpty")}</td></tr>`;
-  $("#qCount").textContent = (qs || qPick) ? `${rows.length} / ${DATA.queue.length}` : DATA.queue.length;
+  $("#qCount").textContent = (qs || qPick) ? `${rows.length} / ${PQ.length}` : PQ.length;
 }
 
 function renderAll(){
@@ -767,7 +811,7 @@ function renderAll(){
   document.querySelectorAll("#period button").forEach(b=>b.textContent = t("days", +b.dataset.d));
   $("#thBL").textContent = t("thBL", period);
   renderHeadline(); renderSpark(); renderFeed(); renderTable();
-  $("#tabListCount").textContent = DATA.stories.length;
+  $("#tabListCount").textContent = PS().length;
   $("#tabNewCount").textContent = $("#feedCount").textContent;
 }
 
